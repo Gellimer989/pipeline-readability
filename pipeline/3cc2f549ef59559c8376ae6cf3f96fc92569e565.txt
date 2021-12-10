@@ -1,0 +1,58 @@
+language: android
+#jdk: oraclejdk8
+env:
+  - TEST=unit
+  - TEST=android ANDROID_TARGET=android-21 ANDROID_ABI=armeabi-v7a ADB_INSTALL_TIMEOUT=10
+
+# force non-container build
+sudo: required
+# OpenJDK 6 and OpenJDK 7 processes will encounter buffer overflows when the host name is too long.
+# hostname addon disabled due to https://github.com/travis-ci/travis-ci/issues/5669
+# https://docs.travis-ci.com/user/hostname
+#addons:
+#    hostname: short-hostname
+# workaround from https://github.com/travis-ci/travis-ci/issues/5227#issuecomment-165131913
+before_install:
+  - sudo add-apt-repository ppa:openjdk-r/ppa -y
+  - sudo apt-get update
+  - sudo apt-get install -y openjdk-8-jdk
+  - sudo update-alternatives --auto java
+  - sudo update-alternatives --auto javac
+  - export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+  - cat /etc/hosts # optionally check the content *before*
+  - sudo hostname "$(hostname | cut -c1-63)"
+  - sed -e "s/^\\(127\\.0\\.0\\.1.*\\)/\\1 $(hostname | cut -c1-63)/" /etc/hosts | sudo tee /etc/hosts
+  - cat /etc/hosts # optionally check the content *after*
+
+android:
+  components:
+    - tools
+    - tools # Per https://github.com/travis-ci/travis-ci/issues/6040#issuecomment-219367943
+    - android-22
+    - android-23
+    - android-24
+    - platform-tools
+    - build-tools-23.0.2
+    - build-tools-24.0.1
+    - extra-android-support
+    - extra-android-m2repository
+    - sys-img-armeabi-v7a-android-21
+  licenses:
+    - 'android-sdk-preview-license-52d11cd2'
+    - 'android-sdk-license-.+'
+    - 'google-gdk-license-.+'
+
+script:
+  - if [ ${TEST} == "unit" ]; then
+    ./gradlew --stacktrace testDebug jacocoTestReport coveralls;
+    fi
+  - if [ ${TEST} == "android" ]; then
+    echo no | android create avd --force --name test --target $ANDROID_TARGET --abi $ANDROID_ABI;
+    emulator -avd test -no-skin -no-audio -no-window &
+    android-wait-for-emulator;
+    sleep 10;
+    adb shell svc power stayon true;
+    sleep 5;
+    adb shell input keyevent 82;
+    ./gradlew --stacktrace connectedFdroidDebugAndroidTest -i;
+    fi

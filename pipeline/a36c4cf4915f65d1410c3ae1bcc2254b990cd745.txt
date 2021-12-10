@@ -1,0 +1,87 @@
+sudo: false
+
+os:
+- linux
+- osx
+
+compiler:
+  - clang
+  - gcc
+
+matrix:
+  fast_finish: true
+  allow_failures:
+  - os: osx
+  exclude:
+  - os: osx
+    compiler: gcc
+
+env:
+  global:
+  - UPLOAD_DIR=libxsmm
+  matrix:
+  - LIBXSMM_JIT=0
+  - LIBXSMM_JIT=1
+
+language: cpp
+
+addons:
+  apt:
+    packages:
+    - gfortran
+    - libblas-dev
+    - liblapack-dev
+    - sshpass
+
+before_install:
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then brew update; fi
+
+install:
+  - pip install --user codecov
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+      cd /tmp && curl -O -L http://downloads.sourceforge.net/project/sshpass/sshpass/1.05/sshpass-1.05.tar.gz &&
+        tar xvzf sshpass-1.05.tar.gz && cd sshpass-1.05 && ./configure && make && sudo make install &&
+        cd ${TRAVIS_BUILD_DIR};
+    fi
+
+after_success:
+  - eval ${CODECOV}
+
+before_script:
+  - source .env
+
+script:
+  - source .codecov $(if [ "${CXX}" == "g++" ]; then echo 1; else echo 0; fi) &&
+    make -e -j PREFIX=${UPLOAD_DIR} TRACE=1 ECFLAGS="-DREAL_TYPE=float ${ECFLAGS}" install-dev tests &&
+    if [ "${CXX}" != "g++" ] && [ "${TRAVIS_OS_NAME}" != "osx" ]; then
+      env LIBXSMM_TRACE=1 ${TRAVIS_BUILD_DIR}/tests/threadsafety 2> threadsafety-trace-${COVID}.txt; 
+    fi &&
+    eval ${RUNGCOV} && eval ${UPLOAD} && make -e clean-all
+
+  - source .codecov $(if [ "${CXX}" == "g++" ]; then echo 1; else echo 0; fi) &&
+    make -e -j PREFIX=${UPLOAD_DIR} TRACE=1 ECFLAGS="-DREAL_TYPE=double ${ECFLAGS}" install-dev tests &&
+    if [ "${CXX}" != "g++" ] && [ "${TRAVIS_OS_NAME}" != "osx" ]; then
+      env LIBXSMM_TRACE=1 ${TRAVIS_BUILD_DIR}/tests/threadsafety 2> threadsafety-trace-${COVID}.txt; 
+    fi &&
+    eval ${RUNGCOV} && eval ${UPLOAD} && make -e clean-all
+
+  - source .codecov $(if [ "${CXX}" == "g++" ]; then echo 1; else echo 0; fi) &&
+    ./make.sh -ci-rm -j PREFIX=${UPLOAD_DIR} install-dev test-cp2k tests &&
+    eval ${RUNGCOV} && eval ${UPLOAD} && make -e clean-all
+
+  - source .codecov $(if [ "${CXX}" == "g++" ]; then echo 1; else echo 0; fi) &&
+    ./make.sh -ci-cm -j PREFIX=${UPLOAD_DIR} install-dev test-cp2k test-smm &&
+    eval ${RUNGCOV} && eval ${UPLOAD} && make -e clean-all
+
+  - source .codecov $(if [ "${CXX}" == "g++" ]; then echo 1; else echo 0; fi) &&
+    ./make.sh -ci-cm -j PREFIX=${UPLOAD_DIR} STATIC=0 install-dev test-cp2k tests &&
+    eval ${RUNGCOV} && eval ${UPLOAD} && make -e clean-all
+
+  - source .codecov $(if [ "${CXX}" == "g++" ]; then echo 1; else echo 0; fi) &&
+    ./make.sh -ci-cm -j PREFIX=${UPLOAD_DIR} SSE=0 AVX=0 install-dev test-smm &&
+    eval ${RUNGCOV} && eval ${UPLOAD} && make -e clean-all
+
+  - source .codecov $(if [ "${CXX}" == "g++" ]; then echo 1; else echo 0; fi) &&
+    ./make.sh -ci-nek -j PREFIX=${UPLOAD_DIR} install-dev test-nek &&
+    eval ${RUNGCOV} && eval ${UPLOAD} && make -e clean-all
+

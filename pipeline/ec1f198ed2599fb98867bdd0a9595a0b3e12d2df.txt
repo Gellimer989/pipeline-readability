@@ -1,0 +1,22 @@
+language: java
+
+before_install:
+  - echo "MAVEN_OPTS='-Xmx2048M -Xss128M -XX:+CMSClassUnloadingEnabled -XX:-UseGCOverheadLimit'" > ~/.mavenrc
+
+install: skip
+script: travis_wait 60 mvn -q test -fae
+
+sudo: required
+
+jdk:
+  - oraclejdk9
+
+addons:
+  apt:
+    packages:
+      - oracle-java9-installer
+
+cache:
+  directories:
+    - .autoconf
+    - $HOME/.m2

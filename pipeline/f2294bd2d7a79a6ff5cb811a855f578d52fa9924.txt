@@ -1,0 +1,10 @@
+language: ruby
+
+notifications:
+  email:
+    - common-effort@pivotallabs.com
+
+rvm:
+  - 1.9.3
+
+script: "./ci_build.sh"

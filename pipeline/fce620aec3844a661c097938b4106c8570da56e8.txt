@@ -1,0 +1,32 @@
+language: ruby
+sudo: false
+
+before_install:
+  - gem update --system 2.6.10
+  - gem --version
+  - gem install bundler --version 1.14.3 --no-rdoc --no-ri
+  - bundle --version
+
+install: bundle _1.14.3_ install --without development doc
+
+script: bundle _1.14.3_ exec rake
+
+rvm:
+  - 2.0.0
+  - 2.1
+  - 2.2
+  - 2.3.3
+
+matrix:
+  fast_finish: true
+  include:
+  # Include JRuby first because it takes the longest
+  - rvm: jruby-9.1.7.0
+    env: JRUBY_OPTS="$JRUBY_OPTS --debug"
+  # Only run RuboCop and Yardstick metrics on the latest Ruby
+  - rvm: 2.4.0
+    env: FULL_SUITE=true
+
+branches:
+  only:
+    - master

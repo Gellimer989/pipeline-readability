@@ -1,0 +1,23 @@
+--- 
+language: python
+python: 
+#- "2.7"
+- "2.6"
+install:
+ - python setup.py sdist --formats=zip -k
+ - find ./dist -iname "*.zip" -print0 | xargs -0 pip install
+script: "python -m gmusicapi.test.run_tests"
+before_install: 
+- sudo apt-get update -qq
+- sudo apt-get install -qq libav-tools libavcodec-extra-53
+after_failure: "cat `python -c 'from gmusicapi.utils import utils; print utils.log_filepath'`"
+branches: 
+  only: 
+  - develop
+  - master
+env: 
+  global:
+  - GM_UP_ID="E9:40:01:0E:51:7A"
+  - GM_UP_NAME="Travis-CI (gmusicapi)"
+  matrix: 
+  - secure: "UAXrAYzrYRVFWSRldd5o9NrreexCsXdBna/kcKLlAQ8ygRahpqP7qXX8qiNU\nVhz0kdgBxgS84AEE3H/30o9v2IDWqmJCI5OqMfH1o5Pm+CelBt+8FHu3SMjm\nNvNcm/Vmip7WCSx7P2FfOf8HboSH/kVXuF0iPlOdozrTR1wPUq8="

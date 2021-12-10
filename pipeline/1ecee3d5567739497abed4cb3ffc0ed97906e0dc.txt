@@ -1,0 +1,44 @@
+language: c
+
+git:
+  depth: 1500
+
+compiler:
+  - gcc
+  - clang
+
+install:
+  # install some packages from Ubuntu's default sources
+  - sudo apt-get -qq update
+  - sudo apt-get install -qq
+    bc
+    libpam-dev
+    libudev-dev
+    gtk-doc-tools
+
+before_script:
+  - ./autogen.sh
+
+script:
+  - export MAKE="make -j4"
+  # make distcheck still does not work on travis
+  - (./configure
+      --disable-use-tty-group
+      --enable-chfn-chsh
+      --enable-line
+      --enable-mesg
+      --enable-newgrp
+      --enable-reset
+      --enable-tunelp
+      --enable-vipw
+      --enable-write
+    ; err=$?; cat config.log; exit $err)
+    && $MAKE
+    && $MAKE check
+    && $MAKE install DESTDIR=/tmp/dest
+    && $MAKE dist
+
+after_script:
+  - test -d tests/diff
+    && echo "cat test diffs:"
+    && find tests/diff -type f | xargs -r cat

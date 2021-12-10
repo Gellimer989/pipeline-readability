@@ -1,0 +1,11 @@
+language: c
+
+jobs:
+  - os: linux
+  - os: osx
+
+env:
+  - MRUBY_TARGET=travis
+
+script:
+  - rake gensym && rake -m && rake test

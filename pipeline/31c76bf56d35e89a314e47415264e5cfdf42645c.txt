@@ -1,0 +1,19 @@
+sudo: required
+
+services:
+  - docker
+
+notifications:
+  email: false
+  #email:
+  #  - julien@gns3.net
+  #irc:
+  #  channels:
+  #    - "chat.freenode.net#gns3"
+  #  on_success: change
+  #  on_failure: always
+
+script:
+- docker build -t gns3-gui-test .
+- docker run gns3-gui-test 
+

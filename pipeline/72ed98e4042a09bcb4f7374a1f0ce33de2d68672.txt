@@ -1,0 +1,118 @@
+language: cpp
+compiler: gcc
+cache: ccache
+
+matrix:
+  include:
+  #Ubuntu Bionic (on docker)
+  - name: Ubuntu Bionic (Debug)
+    if: tag IS NOT present
+    services: docker
+    before_install: docker build -t img .ci
+    script: docker run --mount "type=bind,source=$(pwd),target=/src" -w="/src" img
+          bash .ci/travis-compile.sh --server --debug
+  - name: Ubuntu Bionic (Release)
+    if: (branch = master AND NOT type = pull_request) OR tag IS present
+    services: docker
+    script: docker build -t img .ci &&
+        docker run --mount "type=bind,source=$(pwd),target=/src" -w="/src" img
+          bash .ci/travis-compile.sh --server --package --release
+
+  #Ubuntu Xenial (Debug only)
+  - name: Ubuntu Xenial (Debug)
+    if: tag IS NOT present
+    os: linux
+    dist: xenial
+    group: stable
+    addons:
+      apt:
+        packages:
+        - libprotobuf-dev
+        - protobuf-compiler
+        - qt5-default
+        - qttools5-dev
+        - qttools5-dev-tools
+        - qtmultimedia5-dev
+        - libqt5multimedia5-plugins
+        - libqt5svg5-dev
+        - libqt5sql5-mysql
+        - libqt5websockets5-dev
+    script: bash ./.ci/travis-compile.sh --format --server --test --debug
+
+  #macOS
+  - name: macOS (Debug)
+    os: osx
+    osx_image: xcode8
+    before_install:
+      - brew update
+      - brew update
+      - brew install ccache
+      - brew unlink python # protobuf python2 install requires this link to be removed
+      - brew install protobuf
+      - brew install qt
+    script: bash ./.ci/travis-compile.sh --server --install --debug
+  - name: macOS (Release)
+    if: (branch = master AND NOT type = pull_request) OR tag IS present
+    os: osx
+    osx_image: xcode8
+    before_install:
+      - brew update
+      - brew update
+      - brew install ccache
+      - brew unlink python # protobuf python2 install requires this link to be removed
+      - brew install protobuf
+      - brew install qt
+    script: bash ./.ci/travis-compile.sh --server --package --release
+
+
+# Builds for pull requests skip the deployment step altogether
+deploy:
+# Deploy configuration for "beta" releases
+  - provider: releases
+    api_key:
+      secure: mLMF41q7xgOR1sjczsilEy7HQis2PkZCzhfOGbn/8FoOQnmmPOZjrsdhn06ZSl3SFsbfCLuClDYXAbFscQmdgjcGN5AmHV+JYfW650QEuQa/f4/lQFsVRtEqUA1O3FQ0OuRxdpCfJubZBdFVH8SbZ93GLC5zXJbkWQNq+xCX1fU=
+    skip_cleanup: true
+    name: "Cockatrice $TRAVIS_TAG"
+    body: "Beta release of Cockatrice"
+    file_glob: true
+    file: "build/Cockatrice-*"
+    overwrite: true
+    draft: false
+    prerelease: true
+    on:
+      tags: true
+      repo: Cockatrice/Cockatrice
+      condition: $BUILDTYPE = Release && $TRAVIS_TAG =~ ([0-9]|[1-9][0-9])(\.([0-9]|[1-9][0-9])){2}-beta(\.([2-9]|[1-9][0-9]))?$     # regex to match semver naming convention for beta pre-releases
+
+# Deploy configuration for "stable" releases
+  - provider: releases
+    api_key:
+      secure: mLMF41q7xgOR1sjczsilEy7HQis2PkZCzhfOGbn/8FoOQnmmPOZjrsdhn06ZSl3SFsbfCLuClDYXAbFscQmdgjcGN5AmHV+JYfW650QEuQa/f4/lQFsVRtEqUA1O3FQ0OuRxdpCfJubZBdFVH8SbZ93GLC5zXJbkWQNq+xCX1fU=
+    skip_cleanup: true
+    file_glob: true
+    file: "build/Cockatrice-*"
+    overwrite: true
+    draft: false
+    prerelease: false
+    on:
+      tags: true
+      repo: Cockatrice/Cockatrice
+      condition: $BUILDTYPE = Release && $TRAVIS_TAG =~ ([0-9]|[1-9][0-9])(\.([0-9]|[1-9][0-9])){2}$    # regex to match semver naming convention for stable full releases
+
+
+notifications:
+  email: false
+  webhooks:
+    urls:
+    - https://webhooks.gitter.im/e/d94969c3b01b22cbdcb7
+    on_success: change
+    on_failure: change
+    on_start: never
+    on_cancel: change
+    on_error: change
+
+
+# Announcements of build image updates: https://docs.travis-ci.com/user/build-environment-updates/
+# For precise versions of preinstalled tools on the VM, check “Build system information” in the build log!
+# Official validator for ".travis.yml" config file: https://yaml.travis-ci.org
+# Travis CI config documentation: https://docs.travis-ci.com/user/customizing-the-build

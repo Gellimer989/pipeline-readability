@@ -1,0 +1,110 @@
+#  Copyright (c) 2018-2020, Intel Corporation
+#  All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions are
+#  met:
+#
+#    * Redistributions of source code must retain the above copyright
+#      notice, this list of conditions and the following disclaimer.
+#
+#    * Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
+#      documentation and/or other materials provided with the distribution.
+#
+#    * Neither the name of Intel Corporation nor the names of its
+#      contributors may be used to endorse or promote products derived from
+#      this software without specific prior written permission.
+#
+#
+#   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+#   IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+#   TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+#   PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+#   OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+#   EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#   PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+#   PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+#   LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+#   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+#   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#   Author: Dmitry Babokin
+
+
+# "minimal" instead of "cpp", because of https://github.com/travis-ci/travis-ci/issues/8363
+# Otherwise during python invocation PATH is prepended by /usr/bin and it yields wrong llvm-as.
+language: minimal
+sudo: required
+services:
+    - docker
+dist: xenial
+
+# Some magic is here. Docker is used to load pre-built LLVM as part of custom built image.
+# Custom built LLVM is required because
+#   (1) we need a patched version of LLVM for some of LLVM versions for performance and
+#       stability reasons,
+#   (2) it must be a dump-enabled LLVM build (release version without assertions and without
+#       stripping off dump() function), this affects LLVM 5.0 and later versions,
+#   (3) same compiler needs to be used for building LLVM and ISPC, otherwise there might be
+#       ABI incompatibilities causing link errors and runtime segfaults,
+#   (4) to have flexibility of testing with a range of LLVM versions that we need.
+env:
+  global:
+    - DOCKER_REPO_PATH=ispc/ubuntu_16.04
+    - LLVM_HOME=/usr/local/src/llvm
+    - ISPC_HOME=$TRAVIS_BUILD_DIR
+  matrix:
+    - LLVM_VERSION=10.0 OS=Ubuntu16.04 DOCKER_TAG=llvm100
+    - LLVM_VERSION=9.0 OS=Ubuntu16.04 DOCKER_TAG=llvm90
+    - LLVM_VERSION=8.0 OS=Ubuntu16.04 DOCKER_TAG=llvm80
+      # WASM enabled build
+    - LLVM_VERSION=10.0 OS=Ubuntu16.04 DOCKER_TAG=llvm100 WASM_FLAGS="-DWASM_ENABLED=ON"
+
+before_install:
+  - sudo apt-get update
+  - sudo apt-get install -y libc6-dev-i386 g++-multilib lib32stdc++6
+  - if [ -n "$WASM_FLAGS" ]; then source scripts/install_emscripten.sh && emcc --version; fi
+  - if [ -n "$WASM_FLAGS" ]; then source scripts/install_v8.sh && v8 -e "console.log(\"V8 WORKS\")"; fi
+  - wget https://cmake.org/files/v3.17/cmake-3.17.0-Linux-x86_64.sh && mkdir /opt/cmake && sh cmake-3.17.0-Linux-x86_64.sh --prefix=/opt/cmake --skip-license && sudo ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake && rm cmake-3.17.0-Linux-x86_64.sh
+  - export PATH=/opt/cmake/bin:$PATH
+  - cmake --version
+  - docker pull "$DOCKER_REPO_PATH:$DOCKER_TAG"
+  - docker run "$DOCKER_REPO_PATH:$DOCKER_TAG"
+  - export CONTAINER=`docker ps --all |head -2 |tail -1 |awk '//{print $1}'`
+  - sudo docker cp $CONTAINER:$LLVM_HOME /usr/local/src
+  - export PATH=$LLVM_HOME/bin-$LLVM_VERSION/bin:$PATH
+
+script:
+  - mkdir build_$LLVM_VERSION && cd build_$LLVM_VERSION
+  - cmake -DCMAKE_INSTALL_PREFIX=$TRAVIS_BUILD_DIR -DISPC_INCLUDE_BENCHMARKS=ON $WASM_FLAGS ../
+    # Build ispc and check_isa utility. Run lit tests.
+  - make ispc check_isa check-all -j4
+    # Build benchmarks and test them.
+  - make ispc_benchmarks && make test
+    # Add ispc to the PATH
+  - export PATH=$ISPC_HOME/build_$LLVM_VERSION/bin:$PATH && cd $ISPC_HOME
+  - check_isa
+  - ispc --support-matrix
+  - ./check_env.py
+    # Run examples
+  - if [ -z "$WASM_FLAGS" ]; then ./perf.py -n 1; fi
+    # Run tests for latest LLVM version
+  - if [ "$LLVM_VERSION" == "10.0" -a -z "$WASM_FLAGS" ]; then ./run_tests.py; ./run_tests.py -a x86; fi
+
+stages:
+  - check format
+  - test
+
+jobs:
+  include:
+    - stage: check format
+      os: linux
+      dist: focal
+      addons:
+        apt:
+          packages:
+            - clang-format
+      env: LLVM_VERSION=10.0 OS=Ubuntu20.04
+      before_install:
+      script:
+        - ./check_format.sh clang-format-10

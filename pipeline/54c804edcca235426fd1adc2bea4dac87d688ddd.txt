@@ -1,0 +1,48 @@
+# vim ft=yaml
+# Multiple lines can be made a single "virtual line" because of the way that
+# Travis munges each line before executing it to print out the exit status.
+# It's okay for it to be on multiple physical lines, so long as you remember:
+# - There can't be any leading "-"s - All newlines will be removed, so use
+# ";"s
+language: python
+env:
+    global:
+        - DEPENDS="cython numpy scipy matplotlib h5py nibabel cvxopt"
+python:
+    - 2.6
+    - 3.2
+    - 3.3
+    - 3.4
+matrix:
+  include:
+    - python: 2.7
+      env:
+        - COVERAGE=1
+    # To test minimum dependencies
+    - python: 2.7
+      env:
+        - DEPENDS="cython==0.18 numpy==1.6.0 scipy==0.9.0 nibabel"
+before_install:
+    - virtualenv venv
+    - source venv/bin/activate
+    - pip install nose # always
+    - sudo apt-get install libblas-dev liblapack-dev libatlas3gf-base
+    - pip install --no-index -f http://travis-wheels.scikit-image.org $DEPENDS
+    - if [ "${COVERAGE}" == "1" ]; then
+      pip install coverage;
+      pip install coveralls;
+      fi
+install:
+    - python setup.py install
+# command to run tests, e.g. python setup.py test
+script:
+    # Change into an innocuous directory and find tests from installation
+    - mkdir for_testing
+    - cd for_testing
+    - if [ "${COVERAGE}" == "1" ]; then
+      cp ../.coveragerc .;
+      COVER_ARGS="--with-coverage --cover-package dipy";
+      fi
+    - $PYTHON ../tools/dipnost $COVER_ARGS `python -c "import os; import dipy; print(os.path.dirname(dipy.__file__))"`
+after_success:
+    - if [ "${COVERAGE}" == "1" ]; then coveralls; fi

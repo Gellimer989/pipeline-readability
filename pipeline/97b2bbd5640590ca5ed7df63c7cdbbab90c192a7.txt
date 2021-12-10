@@ -1,0 +1,74 @@
+dist: bionic
+language: c
+addons:
+  apt:
+    sources:
+      - sourceline: 'deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main'
+        key_url: 'https://www.postgresql.org/media/keys/ACCC4CF8.asc'
+    update: true
+    packages:
+      - debhelper
+      - devscripts
+      - electric-fence
+      - fakeroot
+      - libc-ares-dev
+      - libevent-dev
+      - libudns-dev
+      - lintian
+      - pandoc
+      - postgresql-9.5
+      - postgresql-11
+      - python
+      - valgrind
+compiler:
+  - clang
+  - gcc
+env:
+  global:
+    - PGVERSION=11
+  matrix:
+    - configure_args=''
+    - configure_args='' PGVERSION=9.5
+    - configure_args='--disable-evdns --without-cares --without-udns'
+    - configure_args='--enable-evdns  --without-cares --without-udns'
+    - configure_args='--disable-evdns --with-cares    --without-udns'
+    - configure_args='--disable-evdns --without-cares --with-udns'
+    - configure_args='--with-pam'
+    - configure_args='--with-openssl'
+    - configure_args='--without-openssl'
+    - use_valgrind=yes
+    - use_valgrind=yes PGVERSION=9.5
+script: |
+  set -e
+  PATH=/usr/lib/postgresql/${PGVERSION}/bin:$PATH
+  ./autogen.sh
+  ./configure --prefix=$HOME/install --enable-cassert --enable-werror --without-cares $configure_args
+  PACKAGE_VERSION=$(sed -n 's/PACKAGE_VERSION = //p' config.mak)
+  make
+  (
+    if [ x"$use_efence" = x"yes" ]; then
+      export LD_PRELOAD=/usr/lib/libefence.so
+      export EF_ALLOW_MALLOC_0=1
+    fi
+    if [ x"$use_valgrind" = x"yes" ]; then
+      export BOUNCER_EXE_PREFIX="valgrind --quiet --leak-check=full --show-reachable=no --track-origins=yes --error-markers=VALGRIND-ERROR-BEGIN,VALGRIND-ERROR-END --log-file=$HOME/valgrind.%p.log"
+    fi
+    make check
+    if [ x"$use_valgrind" = x"yes" ]; then
+      if grep -q VALGRIND-ERROR $HOME/valgrind.*.log; then
+        cat $HOME/valgrind.*.log
+        exit 1
+      fi
+    fi
+  )
+  make install
+  make dist
+  tar -x -f pgbouncer-${PACKAGE_VERSION}.tar.gz
+  cd pgbouncer-${PACKAGE_VERSION}/
+  ./configure --prefix=$HOME/install2 --enable-werror --without-cares $configure_args
+  make
+  make install
+  cd ..
+  make distclean
+  ./configure
+  make deb

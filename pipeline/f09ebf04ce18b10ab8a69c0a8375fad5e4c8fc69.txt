@@ -1,0 +1,12 @@
+gemfile:
+  - Gemfile.rails30
+  - Gemfile.rails31
+rvm:
+  - 1.8.7
+  - 1.9.2
+  - 1.9.3
+  - jruby
+before_script:
+  - ! 'echo "root: /tmp/.riaktest" > spec/support/test_server.yml'
+  - ! 'echo "source: /usr/sbin" >> spec/support/test_server.yml'
+  - "ulimit -n 2048"

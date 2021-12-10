@@ -1,0 +1,18 @@
+language: node_js
+node_js:
+  - "6"
+  - "8"
+
+os: [linux]
+dist: trusty
+sudo: required
+
+before_install:
+  - npm i -g yarn@latest
+
+install:
+  - yarn install
+  - yarn run lerna bootstrap
+
+script:
+  - npm test

@@ -1,0 +1,53 @@
+language: cpp
+compiler:
+  - clang
+sudo: false
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - libpcre3
+      - libpcre3-dev
+      - gromacs
+      - swig
+      - doxygen
+      - clang-3.3
+      - llvm-3.3
+      - python-numpy
+      - python-scipy
+      - python-sphinx
+      - python-yaml
+      - python-pip
+      - python-virtualenv
+
+env:
+  matrix:
+    - OPENMM_BUILD_STATIC_LIB="OFF"
+    - OPENMM_BUILD_STATIC_LIB="ON"
+
+before_install:
+  - export CC=clang
+  - export CXX=clang++
+  - export ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer-3.3
+
+script:
+  - virtualenv --system-site-packages openmm_env
+  - source openmm_env/bin/activate
+  - cmake -DCMAKE_INSTALL_PREFIX=$HOME/OpenMM -DOPENMM_BUILD_STATIC_LIB=$OPENMM_BUILD_STATIC_LIB .
+  - make -j2
+  - make -j2 install
+  - make PythonInstall
+  - # Run the testInstallation script
+  - python -m simtk.testInstallation
+  - # run all of the tests, making sure failures at this stage don't cause travis failures
+  - ctest -j2 || true
+  - # get a list of all of the failed tests into this stupid ctest format
+  - python -c 'fn = "Testing/Temporary/LastTestsFailed.log"; import os; os.path.exists(fn) or exit(0); l = [line.split(":")[0] for line in open(fn)]; triplets = zip(l, l, [","]*len(l)); print "".join(",".join(t) for t in triplets)' > FailedTests.log
+  - # rerun all of the failed tests
+  - if [ -s Testing/Temporary/LastTestsFailed.log ]; then ctest -I FailedTests.log; fi;
+  - # run the python tests too
+  - cd python/tests
+  - pip install nose
+  - nosetests -vv --processes=-1 --process-timeout=200
+  - cd -

@@ -1,0 +1,6 @@
+before_install:
+  - sudo pip install cpp-coveralls --use-mirrors
+script:
+  - make
+after_success:
+  - coveralls --exclude lib

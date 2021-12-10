@@ -1,0 +1,140 @@
+cache:
+  pip: true
+  directories:
+  - dependencies
+services:
+  - xvfb
+notifications:
+  email:
+    recipients:
+      - support@cyberbotics.com
+    on_success: change
+    on_failure: always
+jobs:
+  include:
+    - &source_tests_staging
+      stage: Sources Tests
+      if: type = cron  #TODO: remove
+      git:
+        depth: 3
+        submodules: false
+      os: linux
+      dist: xenial
+      language: python
+      python: '3.7'
+      addons:
+        apt:
+          packages:
+            - clang-format-5.0
+      install:
+        - pip install -r tests/sources/requirements.txt
+        - pip install -r docs/tests/requirements.txt
+      script:
+        - python -m unittest discover -s docs/tests
+        - travis_wait 30 python -m unittest discover -s tests/sources
+    - <<: *source_tests_staging
+      python: '2.7'
+    - <<: *source_tests_staging
+      os: osx
+      osx_image: xcode10.2  # Xcode: 10.2.1  |  macOS: 10.14
+      language: generic     # Travis doesn't support python on macos yet
+      addons:
+        homebrew:
+          packages:
+            - clang-format
+            - cppcheck
+            - python
+    - &unit_tests_staging
+      stage: Unit Tests
+      if: type = cron OR commit_message IN (travis_unit, travis_distrib, travis_deploy)
+      git: &compilation_git
+        depth: 3
+        submodules: true
+      os: linux
+      dist: xenial
+      install: skip # bundle install is not required
+      language: python
+      python: 2.7
+      jdk: openjdk8
+      addons: &apt_packages
+        apt:
+          packages:
+            - g++
+            - cmake
+            - libusb-dev
+            - swig
+            - python2.7-dev
+            - libglu1-mesa-dev
+            - libglib2.0-dev
+            - libfreeimage-dev
+            - libfreetype6-dev
+            - libxml2-dev
+            - libzzip-0-13
+            - libssl-dev
+            - libboost-dev
+            - libjpeg8-dev
+            - libavcodec-extra
+            - libpci-dev
+            - libgd-dev
+            - libtiff5-dev
+            - libssh-dev
+            - libzip-dev
+            - python-pip
+            - libreadline-dev
+            - libassimp-dev
+            - libpng12-dev
+            - libav-tools
+            - python3.5-dev
+            - openjdk-8-jdk
+            - curl
+            - libwebpdemux1
+            - fakeroot
+      before_install:
+        - sudo add-apt-repository ppa:deadsnakes/ppa -y
+        - sudo apt update
+        - sudo apt install -y python3.6-dev python3.7-dev
+        - export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+        - sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'  # should we move ros to a dedicated stage ?
+        - sudo apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key 421C365BD9FF1F717815A3895523BAEEB01FA116
+        - sudo apt-get install ros-kinetic-desktop-full ros-kinetic-sensor-msgs
+        - sudo rosdep init
+        - rosdep update
+        - sudo pip3 install rospkg catkin_pkg empy defusedxml netifaces --target=/usr/lib/python3.5  # by default ros only comes with python2.7 libraries
+      script:
+        - make release -j2
+        - make release -j2 -C tests
+        - python tests/test_suite.py --no-ansi-escape --nomake
+        - ./tests/ros.sh
+    - &distribution_staging
+      stage: Distribution
+      if: type = cron OR commit_message IN (travis_distrib, travis_deploy)
+      git: *compilation_git
+      os: linux
+      dist: xenial
+      install: skip # bundle install is not required
+      language: python
+      python: 3.7
+      jdk: openjdk8
+      addons: *apt_packages
+      before_install:
+        - sudo add-apt-repository ppa:deadsnakes/ppa -y
+        - sudo apt update
+        - sudo apt install python3.6-dev python3.7-dev
+        - curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
+        - sudo apt install nodejs
+        - export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+      script: travis_wait 45 python tests/test_compilation.py
+    - <<: *distribution_staging
+      os: osx
+      osx_image: xcode10.2  # Xcode: 10.2.1  |  macOS: 10.14
+      language: generic     # Travis doesn't support python on macos yet
+      addons:
+        homebrew:
+          packages:
+            - python
+            - cmake
+            - swig
+            - wget
+            - node
+      before_install:
+        - export JAVA_HOME="$(/usr/libexec/java_home -v 1.8)"
