@@ -1,0 +1,11 @@
+os: linux
+dist: xenial
+language: node_js
+node_js: '10.7'
+services: xvfb
+
+install:
+  - npm install
+
+script:
+  - npm test

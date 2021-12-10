@@ -1,0 +1,35 @@
+language: python
+python:
+  - "2.7"
+  - "3.4"
+
+cache:
+  - pip
+  - apt
+
+sudo: false
+
+# command to install dependencies
+addons:
+  apt:
+    packages:
+    - libatlas-dev
+    - liblapack-dev
+    - libatlas-base-dev
+    - gfortran
+
+install:
+  - easy_install -U distribute
+  - pip install --upgrade pip
+  - pip install numpy==1.9.0
+  - pip install scipy==0.16.1
+  - pip install scikit-learn==0.16.1
+
+  # Install requirements from other repos
+  - pip install git+https://github.com/automl/HPOlibConfigSpace.git
+  - pip install git+https://github.com/automl/paramsklearn.git
+
+  - python setup.py install
+
+# command to run tests, e.g. python setup.py test
+script:  python setup.py test

@@ -1,0 +1,53 @@
+#
+#  Author: Hari Sekhon
+#  Date: 2014-11-29 01:02:47 +0000 (Sat, 29 Nov 2014)
+#
+#  vim:ts=4:sts=4:sw=4:et
+
+language: perl
+perl:
+  - "5.20"
+  - "5.8"
+
+install:
+  #- pushd lib
+  #- make apt-packages
+  #- cpanm --installdeps --notest . || echo CPANM LIB FAILED
+  #- popd
+  #- make apt-packages
+  #- cpanm --installdeps --notest . || echo CPANM FAILED
+  # integrated cpanm in to core Makefiles
+  - make
+
+script:
+  - tests/help.sh
+  - for x in tests/*.sh; do [ "$x" = "tests/help.sh" ] && continue; ./$x; done
+
+services:
+  - cassandra
+  #- couchdb
+  - elasticsearch
+  - memcached
+  - mongodb
+  - mysql
+  #- postgreql
+  - neo4j
+  #- rabbitmq
+  - redis
+  - riak
+
+env:
+  global:
+    - CASSANDRA_HOST=localhost
+    - CASSANDRA_HOME=/usr/local/cassandra
+    - ELASTICSEARCH_HOST=localhost
+    - ELASTICSEARCH_INDEX=travis-test
+    - MEMCACHED_HOST=localhost
+    - MONGODB_HOST=localhost
+    - MYSQL_DATABASE=user
+    - MYSQL_HOST=localhost
+    - MYSQL_PASSWORD=""
+    - MYSQL_USER=travis
+    - NEO4J_HOST=localhost
+    - REDIS_HOST=localhost
+    - RIAK_HOST=localhost

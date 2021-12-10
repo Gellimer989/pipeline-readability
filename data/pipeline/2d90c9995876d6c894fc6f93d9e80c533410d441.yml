@@ -1,0 +1,18 @@
+language: cpp
+dist: trusty
+compiler:
+- clang
+os:
+- linux
+services:
+- docker
+before_install:
+- echo '##### CHECKPOINT 1'
+script:
+- echo '##### CHECKPOINT 2'
+- docker build -t eos-dev -f ./.cicd/Dockerfile-U18 .
+after_success:
+- echo '##### CHECKPOINT 3'
+- echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+- docker tag eos-dev eosio/ci:ubuntu-18.04
+- docker push eosio/ci:ubuntu-18.04

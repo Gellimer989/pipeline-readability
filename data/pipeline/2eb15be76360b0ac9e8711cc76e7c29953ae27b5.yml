@@ -1,0 +1,57 @@
+sudo: required
+dist: trusty
+language: generic
+
+env:
+  - BCBIO_DOCKER_PRIVILEGED=True
+
+before_install:
+  # Temporal fix for networking problem: https://github.com/travis-ci/travis-ci/issues/1484
+  - echo "127.0.1.1 "`hostname` | sudo tee /etc/hosts
+  # Get and install anaconda for custom Python installation
+  - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh
+  - bash Miniconda-latest-Linux-x86_64.sh -b -p ~/install/bcbio-vm/anaconda
+
+install:
+  # Install bcbio-nextgen and bcbio-nextgen-vm
+  - df -h
+  - export PATH=~/install/bcbio-vm/anaconda/bin/:$PATH
+  - conda install --yes -c conda-forge -c bioconda bcbio-nextgen-vm bcbio-nextgen -q
+  - conda install --yes -c conda-forge -c bioconda cwltool
+  # Clean up space with external tools we don't need for tests
+  - conda clean --yes --tarballs --index-cache
+  - conda remove --yes --force qt openjdk nodejs
+  - rm -rf ~/install/bcbio-vm/anaconda/pkgs/qt-*
+  - rm -rf ~/install/bcbio-vm/anaconda/pkgs/openjdk-*
+  - rm -rf ~/install/bcbio-vm/anaconda/pkgs/nodejs-*
+  - du -sch ~/install/bcbio-vm/anaconda/pkgs/* | sort -h
+  - df -h
+  # Get docker container
+  - bcbio_vm.py --datadir=${TRAVIS_BUILD_DIR}/tests/data install --tools
+  - df -h
+  - docker images
+  # Update to latest bcbio-nextgen code externally and within the container
+  - rm -rf ~/install/bcbio-vm/anaconda/lib/python2.7/site-packages/bcbio
+  - rm -rf ~/install/bcbio-vm/anaconda/lib/python2.7/site-packages/bcbio_nextgen-*
+  - ~/install/bcbio-vm/anaconda/bin/python setup.py install
+  - bcbio_vm.py devel setup_install
+
+script:
+  # -- Standard bcbio tests
+  - docker run -v `pwd`:`pwd` bcbio/bcbio bash -c "cd `pwd` && /usr/local/share/bcbio-nextgen/anaconda/bin/py.test tests/unit --cov=bcbio"
+  - py.test tests/bcbio_vm -v -m docker_multicore
+  # Cleanup full bcbio/bcbio image for space
+  - docker rm `docker ps -a -q`
+  - docker rmi -f bcbio/bcbio
+  # -- bcbio CWL tests
+  - docker pull quay.io/bcbio/bcbio-vc
+  - bcbio_vm.py devel setup_install -i quay.io/bcbio/bcbio-vc
+  - py.test tests/bcbio_vm -v -m cwl_docker
+
+after_failure:
+  - df -h
+
+notifications:
+  email: false
+  slack:
+    secure: iMn3Iih7cVmWci7A/Rpozc9Fn5IDKr3o6Y7XAWHEBiOEFlBwkC3oHFZxTC1+wZQiDNR87yVF9z3+FhYTYizpUeCPMddfNLMzdcO0EGtpckZOzX7aaFjqQCWhtucDnDQYaHhZIPKATrWvpPSYm7bpyp/p9cqgE/a9uvFLRMrIyzM=

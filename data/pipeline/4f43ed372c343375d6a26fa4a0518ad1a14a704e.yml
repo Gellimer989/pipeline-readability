@@ -1,0 +1,23 @@
+language: python
+python:
+  - 2.7
+notifications:
+  email:
+    - tbarbugli@gmail.com
+    - thierryschellenbach@gmail.com
+cache:
+  directories:
+    - $HOME/.pip-cache/
+services:
+  - redis
+  - cassandra
+before_install:
+  - sudo apt-get install libev4 libev-dev
+  - git clone https://github.com/tbarbugli/feedly_pin.git pinterest_example
+install:
+  - easy_install -U distribute
+  - pip install -e . --download-cache $HOME/.pip-cache
+  - pip install -r pinterest_example/requirements/testing.txt --download-cache $HOME/.pip-cache -I
+script:
+  - py.test -sl --tb=short feedly/tests
+  - python pinterest_example/manage.py test core

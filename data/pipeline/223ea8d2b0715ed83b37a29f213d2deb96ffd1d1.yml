@@ -1,0 +1,145 @@
+# Travis script that uses miniconda in place of the system installed python
+# versions.  Allows substantial flexibility for choosing versions of
+# required packages and is simpler to use to test up-to-date scientific Python
+# stack
+dist: trusty
+sudo: required
+language: python
+
+env:
+  # Default values for common packages, override as needed
+  global:
+    - OPTIONAL=
+    - COVERAGE=false
+    - USEMPL=true
+    - MATPLOTLIB=
+    - DOCBUILD=false
+    - LINT=false
+    - MKL_NUM_THREADS=1 # Enforce single thread
+    - NUMEXPR_NUM_THREADS=1
+    - OMP_NUM_THREADS=1
+    - OPENBLAS_NUM_THREADS=1
+    - PYTHONHASHSEED=0 # Ensure tests are correctly gathered by xdist
+    - BLAS="mkl blas=*=mkl" # Use Intel MKL by default
+    - BUILD_INIT=tools/ci/travis_conda.sh
+    - DEPEND_ALWAYS="pyyaml joblib pip colorama"
+    - CYTHON_COVERAGE=
+
+matrix:
+  fast_finish: true
+  include:
+  # Python 3.7 + cutting edge packages
+  - python: 3.6 # 3.7 is not available on travis
+    env:
+    - PYTHON=3.7
+    - COVERAGE=true
+  # Python 3.6 + legacy blas
+  - python: 3.6
+    env:
+    - PYTHON=3.6
+    - NUMPY=1.14
+    - BLAS="nomkl blas=*=openblas"
+  # Documentation build (on Python 3.6 + cutting edge packages)
+  - python: 3.6
+    env:
+    - PYTHON=3.6
+    - PANDAS=0.23
+    - DOCBUILD=true
+  # Python 3.5 + partially updated packages
+  - python: 3.5
+    env:
+    - PYTHON=3.5
+    - NUMPY=1.13
+    - SCIPY=1.0
+    - PANDAS=0.22
+    - MATPLOTLIB=2.0
+    - LINT=true
+  # Python 3.4 + baseline packages
+  - python: 3.4
+    env:
+    - PYTHON=3.4
+    - NUMPY=1.11
+    - SCIPY=0.18
+    - PANDAS=0.19
+    - MATPLOTLIB=1.5
+  # Python 2.7 + partially updated numpy, mpl; cutting edge scipy, pandas
+  - python: 2.7
+    env:
+    - PYTHON=2.7
+    - NUMPY=1.13
+    - MATPLOTLIB=2.0
+    - COVERAGE=true
+  # Python 2.7 + baseline packages
+  - python: 2.7
+    env:
+    - PYTHON=2.7
+    - NUMPY=1.12
+    - BLAS= # Do not specify blas in this config due to conflict
+    - SCIPY=0.19
+    - PANDAS=0.20
+    - USEMPL=false
+    - LINT=true
+  # Standard pip install
+  - python: 3.6
+    env:
+    - BUILD_INIT=tools/ci/travis_pip.sh
+  # Latest pre-release packages
+  - python: 3.6
+    env:
+    - PIP_PRE=true
+    - BUILD_INIT=tools/ci/travis_pip.sh
+
+  allow_failures:
+  # pre-testing is a little fragile. Make it an FYI.
+  - python: 3.6
+    env:
+    - PIP_PRE=true
+    - BUILD_INIT=tools/ci/travis_pip.sh
+
+notifications:
+  email:
+    on_success: always
+
+before_install:
+  # Show information about CPU running job to understand BLAS issues
+  - sudo lshw -class processor
+  # Fix for headless TravisCI
+  - "export DISPLAY=:99.0"
+  - "sh -e /etc/init.d/xvfb start"
+  # Avoid noise from matplotlib
+  - mkdir -p $HOME/.config/matplotlib
+  - SRCDIR=$PWD
+  # Source recipe to install packages
+  - source $BUILD_INIT
+  - pip install pytest pytest-xdist pip pytest-randomly nose
+  - if [ ${COVERAGE} = true ]; then export COVERAGE_OPTS=" --cov-config=.travis_coveragerc --cov=statsmodels "; else export COVERAGE_OPTS=""; fi
+  - if [ ${COVERAGE} = true ]; then export CYTHON_COVERAGE=1; fi
+  - echo "Cython coverage:" ${CYTHON_COVERAGE}
+  - |
+    if [ ${COVERAGE} = true ]; then
+        pip install codecov coverage coveralls pytest-cov
+        export COVERAGE_OPTS="--cov-config=.travis_coveragerc --cov=statsmodels"
+    else
+        export COVERAGE_OPTS=""
+    fi
+  - if [ ${DOCBUILD} = true ]; then source tools/ci/docbuild_install.sh; fi;
+  - pip install flake8
+  - export SRCDIR=$PWD
+
+# Install packages
+install:
+  - python setup_coverage.py develop
+
+script:
+  # Show versions
+  - python -c 'import statsmodels.api as sm; sm.show_versions();'
+  # docbuild and exit, if required
+  - if [ ${DOCBUILD} = true ]; then cd ${SRCDIR}/docs; source ${SRCDIR}/tools/ci/docbuild.sh; exit 0; fi;
+  # Run tests
+  - echo pytest -n 2 ${COVERAGE_OPTS} statsmodels --skip-examples
+  - pytest ${COVERAGE_OPTS} --skip-slow --skip-examples statsmodels/tsa/statespace statsmodels/tsa/kalmanf statsmodels/tsa/regime_switching statsmodels/tsa/tests/test_holtwinters.py statsmodels/nonparametric
+  - ./lint.sh
+
+after_success:
+  - if [ ${COVERAGE} = true ]; then coveralls --rcfile=${SRCDIR}/.travis_coveragerc; fi
+  - if [ ${COVERAGE} = true ]; then codecov; fi

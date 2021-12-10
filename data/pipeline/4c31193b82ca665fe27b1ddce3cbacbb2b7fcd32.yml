@@ -1,0 +1,99 @@
+# For full coverage, we'd have to test all supported Python, MongoDB, and
+# PyMongo combinations. However, that would result in an overly long build
+# with a very large number of jobs, hence we only test a subset of all the
+# combinations:
+# * MongoDB v3.4 & the latest PyMongo v3.x is currently the "main" setup,
+#   tested against Python v2.7, v3.5, v3.6, and PyPy.
+# * Besides that, we test the lowest actively supported Python/MongoDB/PyMongo
+#   combination: MongoDB v3.4, PyMongo v3.4, Python v2.7.
+# * MongoDB v3.6 is tested against Python v3.6, and PyMongo v3.6, v3.7, v3.8.
+#
+# We should periodically check MongoDB Server versions supported by MongoDB
+# Inc., add newly released versions to the test matrix, and remove versions
+# which have reached their End of Life. See:
+# 1. https://www.mongodb.com/support-policy.
+# 2. https://docs.mongodb.com/ecosystem/drivers/driver-compatibility-reference/#python-driver-compatibility
+#
+# Reminder: Update README.rst if you change MongoDB versions we test.
+
+language: python
+
+python:
+- 2.7
+- 3.5
+- 3.6
+- pypy
+
+env:
+- MONGODB=3.4 PYMONGO=3.x
+
+matrix:
+  # Finish the build as soon as one job fails
+  fast_finish: true
+
+  include:
+  - python: 2.7
+    env: MONGODB=3.4 PYMONGO=3.4.x
+  - python: 3.6
+    env: MONGODB=3.6 PYMONGO=3.x
+
+before_install:
+- bash .install_mongodb_on_travis.sh
+- sleep 20  # https://docs.travis-ci.com/user/database-setup/#mongodb-does-not-immediately-accept-connections
+- mongo --eval 'db.version();'
+
+install:
+- sudo apt-get install python-dev python3-dev libopenjpeg-dev zlib1g-dev libjpeg-turbo8-dev
+  libtiff4-dev libjpeg8-dev libfreetype6-dev liblcms2-dev libwebp-dev tcl8.5-dev tk8.5-dev
+  python-tk
+- travis_retry pip install --upgrade pip
+- travis_retry pip install coveralls
+- travis_retry pip install flake8 flake8-import-order
+- travis_retry pip install "tox"   # tox 3.11.0 has requirement virtualenv>=14.0.0
+- travis_retry pip install "virtualenv"  # virtualenv>=14.0.0 has dropped Python 3.2 support (and pypy3 is based on py32)
+- travis_retry tox -e $(echo py$TRAVIS_PYTHON_VERSION-mg$PYMONGO | tr -d . | sed -e 's/pypypy/pypy/') -- -e test
+
+# Cache dependencies installed via pip
+cache: pip
+
+# Run flake8 for py27
+before_script:
+- if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then flake8 .; else echo "flake8 only runs on py27"; fi
+
+script:
+- tox -e $(echo py$TRAVIS_PYTHON_VERSION-mg$PYMONGO | tr -d . | sed -e 's/pypypy/pypy/') -- --with-coverage
+
+# For now only submit coveralls for Python v2.7. Python v3.x currently shows
+# 0% coverage. That's caused by 'use_2to3', which builds the py3-compatible
+# code in a separate dir and runs tests on that.
+after_success:
+- if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then coveralls --verbose; fi
+
+notifications:
+  irc: irc.freenode.org#mongoengine
+
+# Only run builds on the master branch and GitHub releases (tagged as vX.Y.Z)
+branches:
+  only:
+  - master
+  - /^v.*$/
+
+# Whenever a new release is created via GitHub, publish it on PyPI.
+deploy:
+  provider: pypi
+  user: the_drow
+  password:
+    secure: QMyatmWBnC6ZN3XLW2+fTBDU4LQcp1m/LjR2/0uamyeUzWKdlOoh/Wx5elOgLwt/8N9ppdPeG83ose1jOz69l5G0MUMjv8n/RIcMFSpCT59tGYqn3kh55b0cIZXFT9ar+5cxlif6a5rS72IHm5li7QQyxexJIII6Uxp0kpvUmek=
+
+  # Create a source distribution and a pure python wheel for faster installs.
+  distributions: "sdist bdist_wheel"
+
+  # Only deploy on tagged commits (aka GitHub releases) and only for the parent
+  # repo's builds running Python v2.7 along with PyMongo v3.x and MongoDB v3.4.
+  # We run Travis against many different Python, PyMongo, and MongoDB versions
+  # and we don't want the deploy to occur multiple times).
+  on:
+    tags: true
+    repo: MongoEngine/mongoengine
+    condition: ($PYMONGO = 3.x) && ($MONGODB = 3.4)
+    python: 2.7

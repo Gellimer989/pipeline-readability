@@ -1,0 +1,89 @@
+# Special configuration file to run tests on Travis-CI via GitHub notifications
+# See https://travis-ci.org/biopython/biopython/builds for results
+#
+# The tests are run via the coverage script, and if the tests pass the coverage
+# information is pushed to https://codecov.io/github/biopython/biopython
+#
+# Note when testing Python 3, the 'python' command will invoke Python 3
+# and similarly for PyPy too.
+
+language: python
+python:
+  - "2.6"
+  - "2.7"
+  - "3.3"
+  - "3.4"
+  - "3.5"
+  - "pypy"
+  - "pypy3"
+
+sudo: false
+addons:
+  apt:
+    packages:
+    - bwa
+    - clustalo
+    - clustalw
+    - emboss
+    - mafft
+    - muscle
+    - probcons
+    - samtools
+    - wise
+
+before_install:
+  - pip install --upgrade pip
+  - "export PY3=yes"
+  - "if [[ $TRAVIS_PYTHON_VERSION == '2.6' ]]; then export PY3=no; fi"
+  - "if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then export PY3=no; fi"
+  - "if [[ $TRAVIS_PYTHON_VERSION == 'pypy' ]]; then export PY3=no; fi"
+  - "export PYPY=no"
+  - "if [[ $TRAVIS_PYTHON_VERSION == 'pypy' ]]; then export PYPY=yes; fi"
+  - "if [[ $TRAVIS_PYTHON_VERSION == 'pypy3' ]]; then export PYPY=yes; fi"
+#Misc python modules we can use as soft dependencies
+  - "if [[ $PYPY != 'yes' ]]; then pip install reportlab; fi"
+  - "pip install rdflib"
+#This takes about 8s even with binary wheels, so don't do it on all platforms:
+  - "if [[ $TRAVIS_PYTHON_VERSION == '2.6' ]]; then pip install scipy --only-binary numpy,scipy; fi"
+  - "if [[ $TRAVIS_PYTHON_VERSION == '3.5' ]]; then pip install scipy --only-binary numpy,scipy; fi"
+#Not hosted on PyPI so this needs the allow external switch:
+#Currently pypy3-2.4.0 self reports as Python 3.2,
+#which is not supported by mysql-connector-python
+  - "if [[ $TRAVIS_PYTHON_VERSION != 'pypy3' ]]; then pip install --allow-all-external mysql-connector-python-rf; fi"
+#Installing psycopg2 does not work under PyPy or Jython
+  - "export PG=yes"
+  - "if [[ $PYPY == 'yes' ]]; then export PG=no; fi"
+  - "if [[ $PG == 'yes' ]]; then pip install psycopg2; fi"
+#Installing mysql-python does not work under Python 3
+  - "export MSQL=$PG"
+  - "if [[ $PY3 == 'yes' ]]; then export MSQL=no; fi"
+  - "if [[ $MSQL == 'yes' ]]; then pip install mysql-python; fi"
+#Lib unittest2 is needed for some assertRaises tests under Python 2.6
+  - "if [[ $TRAVIS_PYTHON_VERSION == '2.6' ]]; then pip install unittest2; fi"
+#Used to record test coverage information; running PyPy3 via coverage is very slow
+  - "export COV=yes"
+  - "if [[ $TRAVIS_PYTHON_VERSION == 'pypy3' ]]; then export COV=no; fi"
+  - "if [[ $COV == 'yes' ]]; then pip install coverage; fi"
+
+
+install:
+#The yes is in case we get our prompt about missing NumPy
+  - "/usr/bin/yes | python setup.py install"
+
+before_script:
+  - cd Tests
+  - cp biosql.ini.sample biosql.ini
+
+script:
+#Using just coverage should match up to the current Python version:
+  - "if [[ $COV == 'yes' ]]; then coverage run --source=Bio,BioSQL run_tests.py --offline; fi"
+  - "if [[ $COV != 'yes' ]]; then python run_tests.py --offline; fi"
+
+after_success:
+#See https://codecov.io/ and https://github.com/codecov/example-python
+  - "if [[ $COV == 'yes' ]]; then pip install codecov; fi"
+  - "if [[ $COV == 'yes' ]]; then codecov; fi"
+
+#The email defaults are too talkative
+notifications:
+  email: false

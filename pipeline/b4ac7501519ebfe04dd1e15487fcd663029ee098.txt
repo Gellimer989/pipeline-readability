@@ -1,6 +1,0 @@
-language: objective-c
-before_install:
-    - (ruby --version)
-    - mkdir -p ~/Library/RubyMotion/build
-    - sudo motion update
-script: ./travis.sh

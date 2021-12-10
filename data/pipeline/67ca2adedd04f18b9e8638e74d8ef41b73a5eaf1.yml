@@ -1,0 +1,36 @@
+language: python
+env:
+  matrix:
+     - TERRAFORM_FILE=testing/aws DOCKER_SECRETS='-e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID'
+     - TERRAFORM_FILE=testing/do DOCKER_SECRETS='-e DIGITALOCEAN_TOKEN=$DIGITALOCEAN_TOKEN'
+     - TERRAFORM_FILE=testing/gce DOCKER_SECRETS='-e GOOGLE_CREDENTIALS=$GOOGLE_CREDENTIALS'
+
+install: "pip install -r requirements.txt"
+
+before_script: 
+        - mv $TERRAFORM_FILE $TERRAFORM_FILE.tf
+        - docker pull sehqlr/mantl:testing
+        - docker run -it -v testing:/local -v $(pwd):/mantl -e 'SSH_KEY=id_rsa' sehqlr/mantl:testing "python2 docker_setup.py"
+
+script: 
+  - python2 testing/test-health-checks.py
+  - docker run -it -v testing:/local -v $(pwd):/mantl $DOCKER_SECRETS -e 'SSH_KEY=id_rsa' -e 'TF_VAR_build_number=${TRAVIS_JOB_NUMBER/./-}' -w='/mantl' sehqlr/mantl:testing "python2 testing/build-cluster.py"
+
+after_script:
+  - terraform destroy --force || true
+  - terraform destroy --force
+
+after_success: echo "slack notification here"
+
+sudo: required
+services:
+  - docker
+
+addons:
+  apt:
+    packages:
+      - unzip
+
+notifications:
+  slack:
+    secure: eX3VgtKQ48rzKGdXpIZZVYINffI2wbqhqoJFUxHO1Zku6tXzbt0R+r3NVHo37wBID63bkXjYqjZuv+JRUtvf/XO51+QkTqCCZ6iC3lr6IEqRpzxXsmNYf+QPhuN2kvVTSyycHFXdwQLL7sCniFSmEcLdu6xMpobI4PUwi2OvHj4=

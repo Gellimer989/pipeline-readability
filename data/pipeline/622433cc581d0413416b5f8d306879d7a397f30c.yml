@@ -1,0 +1,24 @@
+language: cpp
+compiler:
+  - clang
+before_install:
+  - echo $TRAVIS_OS_NAME
+  - brew update
+  - brew install wxwidgets
+  - brew install gettext
+  - brew link --force gettext
+before_script:
+  - cmake .
+script:
+  - make -j4
+branches:
+  except:
+    - legacy
+notifications:
+  recipients:
+    - developers@moneymanagerex.org
+  email:
+    on_success: change
+    on_failure: always
+os:
+  - osx

@@ -1,0 +1,46 @@
+sudo: required
+dist: trusty
+language: c
+addons:
+    apt:
+        packages:
+            - autoconf
+            - automake
+            - make
+            - libx11-dev
+            - libpango1.0-dev
+            - libcairo2-dev
+            - libstartup-notification0-dev
+            - libxcb-ewmh-dev
+            - libxcb-icccm4-dev
+            - libxcb-util0-dev
+            - libxcb-xinerama0-dev
+            - libxcb-xkb-dev
+            - libxcb1-dev
+            - xvfb
+            - discount
+            - xdotool
+            - fluxbox
+
+compiler:
+    - gcc
+
+# TODO: We install xkbcommon here, until it is whitelisted in Travis
+install:
+    - sudo apt-get install -y libxkbcommon-dev libxkbcommon-x11-dev
+
+before_script:
+    - autoreconf -i
+
+script:
+    - ./configure --enable-gcov
+    - make
+    - make check
+# to re-enable if xdotool is allowed.
+    - make test-x
+    - make test-x1
+    - gcov source/rofi.c
+    - make distcheck
+
+after_success:
+      - bash <(curl -s https://codecov.io/bash)

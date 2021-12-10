@@ -1,0 +1,139 @@
+sudo: false
+language: cpp
+compiler: gcc
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test # ppa:ubuntu-toolchain-r/test
+      - kubuntu-backports       # ppa:kubuntu-ppa/backports
+    packages:
+      - libbz2-dev
+      - libssl-dev
+      - gcc-5
+      - g++-5
+      - cmake
+      - cmake-data
+      # GUI dependencies
+      - libx11-dev
+      - libgtk2.0-dev
+      - libnss3-dev
+      - libgconf2-dev
+      - libxss-dev
+      - libasound2-dev
+      - libxtst-dev
+      # Scripting dependencies
+      - inkscape
+      - imagemagick
+  sauce_connect:
+    username: oliverhamlet
+  jwt:
+    secure: "YbmqKNfotisPlMiw1Vk8Ts9xYAegLf+fNb9FfAvNVyHIR7mJw7LivFPdjW5x3P7ktfwPqGxjGjNn0hOCKbLoqueKcq4LHuvdWgOaeqXc2BmVQx+HLzECj0G3uMshiyGZRCf6noJBXPe96YJb/nGj4bhZn/AMiGH+vNkOrPtoJNk="
+
+cache:
+  directories:
+    - $TRAVIS_BUILD_DIR/node_modules
+    - $TRAVIS_BUILD_DIR/bower_components
+    - $HOME/boost_1_62_0/boost
+    - $HOME/boost_1_62_0/stage/lib
+
+install:
+  # Use GCC 5.
+  - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
+  - export CXXFLAGS="-fPIC" CFLAGS="-fPIC"
+  # Install the latest stable Node.js. The default Node.js version is too old
+  # for some of the JavaScript syntax used.
+  - npm install -g nvm
+  - nvm install node
+  # Install Node.js dependencies
+  - npm install
+  # Add local binary path to PATH
+  - export PATH="./node_modules/.bin:$PATH"
+  # Install runtime dependencies using Bower
+  - bower install
+  - wget https://raw.githubusercontent.com/WrinklyNinja/ci-scripts/1.0.0/install_boost.py
+  - python install_boost.py --directory ~ --boost-version 1.62.0 atomic chrono date_time filesystem iostreams locale log regex system thread
+  # Install packages for generating documentation
+  - pip install --user sphinx breathe sphinx_rtd_theme
+  # Add sphinx-build to PATH
+  - export PATH="$HOME/.local/bin:$PATH"
+  # Don't install Doxygen from the repositories, it also gets the LaTeX packages
+  # so is a ~ 700 MB download.
+  - wget ftp://ftp.stack.nl/pub/users/dimitri/doxygen-1.8.12.linux.bin.tar.gz
+  - tar -xf doxygen-1.8.12.linux.bin.tar.gz
+  # Add Doxygen binary path to PATH
+  - export PATH="$PWD/doxygen-1.8.12/bin:$PATH"
+
+before_script:
+  - mkdir build
+  - node scripts/create_ico.js
+  # Move into the cloned LOOT repo build path.
+  - cd build
+  # Link dynamically to the C++ standard library runtime.
+  - cmake .. -DBOOST_ROOT=~/boost_1_62_0
+
+script:
+  - if [ "${TRAVIS_PULL_REQUEST}" = "false" ]; then npm test; fi
+  # Travis will run all steps before failing, so no point in building only the
+  # tests first.
+  - make all
+  - ./tests
+  - ./api-tests
+
+after_success:
+  - cd $TRAVIS_BUILD_DIR
+  # Get the full repo history before trying to run the archiver.
+  - git fetch --unshallow
+  - node scripts/potomo.js
+  - sphinx-build -b html docs build/docs/html
+  - node scripts/archive.js
+  # Need to replace the HEAD branch descriptor in the archive filenames
+  - for ARCHIVE in build/*.tar.xz; do mv $ARCHIVE $(echo $ARCHIVE | sed "s/HEAD/$TRAVIS_BRANCH/"); done
+  # Make a copy of the metadata validator archive for GitHub deployment to find.
+  - cp $(ls build/metadata-validator_*.tar.xz) build/metadata-validator.tar.xz
+  # Need to replace the Bintray config files' version placeholders.
+  - VERSION=$(ls build/loot_*.tar.xz | sed 's/build\/loot_//;s/.tar.xz//;')
+  - sed -i "s/REPLACE_THIS_VERSION/$VERSION/" scripts/travis/loot.bintray.json
+  - sed -i "s/REPLACE_THIS_VERSION/$VERSION/" scripts/travis/loot-api.bintray.json
+  - sed -i "s/REPLACE_THIS_VERSION/$VERSION/" scripts/travis/metadata-validator.bintray.json
+
+deploy:
+  - provider: bintray
+    file: scripts/travis/loot.bintray.json
+    user: wrinklyninja
+    key:
+      secure: "CyJpCbkO4pK+h4ZFDqwS3FZNwTaY7638IT7uzVKhGQV2CD9nMR7mb9bL6DG/Uxs91MuBeCu8RwzXtK5IVmPkH5AbMO95JMsjor+t8lT6AHhjvgmAhOBXJa5qMbFBFbLQErTdudHIcOxgjyjA5vqt5Zf0DlWty7WnE10WoU/O7qg="
+    skip_cleanup: true
+    on:
+      all_branches: true
+  - provider: bintray
+    file: scripts/travis/loot-api.bintray.json
+    user: wrinklyninja
+    key:
+      secure: "CyJpCbkO4pK+h4ZFDqwS3FZNwTaY7638IT7uzVKhGQV2CD9nMR7mb9bL6DG/Uxs91MuBeCu8RwzXtK5IVmPkH5AbMO95JMsjor+t8lT6AHhjvgmAhOBXJa5qMbFBFbLQErTdudHIcOxgjyjA5vqt5Zf0DlWty7WnE10WoU/O7qg="
+    skip_cleanup: true
+    on:
+      all_branches: true
+  - provider: bintray
+    file: scripts/travis/metadata-validator.bintray.json
+    user: wrinklyninja
+    key:
+      secure: "CyJpCbkO4pK+h4ZFDqwS3FZNwTaY7638IT7uzVKhGQV2CD9nMR7mb9bL6DG/Uxs91MuBeCu8RwzXtK5IVmPkH5AbMO95JMsjor+t8lT6AHhjvgmAhOBXJa5qMbFBFbLQErTdudHIcOxgjyjA5vqt5Zf0DlWty7WnE10WoU/O7qg="
+    skip_cleanup: true
+    on:
+      all_branches: true
+  - provider: releases
+    api_key:
+      secure: "TuiXR/J5cdvgAXqU5x79E7thXwzN4Jqo1vKolPPb5ahrBllBHFh23awyOIdlTnXY1aS6NjS85uIiD3TNZ/hwrtDsjMgNs1ofL6A9B+7uQJjpK8JqFUECrJCMsEhnwRSzIUeqDeZp440x3c0bTFqfSMErrG/ga5S+VyNYHYREqo4="
+    file: build/metadata-validator.tar.xz
+    skip_cleanup: true
+    on:
+      repo: loot/loot
+      tags: true
+
+notifications:
+  irc:
+    channels:
+      - "chat.freenode.net#loot"
+    use_notice: true
+    skip_join: true

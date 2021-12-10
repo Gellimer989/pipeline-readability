@@ -1,0 +1,20 @@
+language: java
+sudo: false
+
+cache:
+  directories:
+    - $HOME/.gradle/caches/
+    - $HOME/.gradle/wrapper/
+
+jdk:
+  - openjdk6
+
+env:
+  - IDEA_VERSION=IC-14.1.6 USE_BOOTSTRAP=false
+  - IDEA_VERSION=IU-14.1.6 USE_BOOTSTRAP=false
+
+before_install:
+ - chmod +x gradlew
+
+script:
+  - gradle generateAll check

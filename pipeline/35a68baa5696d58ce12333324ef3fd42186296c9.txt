@@ -1,8 +1,0 @@
-language: java
-
-jdk:
-    - oraclejdk9
-
-install: true
-
-script: test -B

@@ -1,0 +1,22 @@
+language: node_js
+cache: yarn
+node_js:
+  - node
+  - "12"
+  - "10"
+matrix:
+  include:
+    os: windows
+    cache: false
+    node_js: node
+    env:
+      - YARN_GPG=no
+deploy:
+  provider: pages
+  skip-cleanup: true
+  github-token: $GITHUB_TOKEN
+  local-dir: api
+  on:
+    branch: master
+    node_js: node
+    os: linux

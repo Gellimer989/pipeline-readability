@@ -1,0 +1,31 @@
+language: php
+php:
+  - 5.3
+  - 5.4
+  - 5.5
+  - 5.6
+  - 7
+  - hhvm
+  - nightly
+
+script:
+  - find . -type f -name '*.php' -print0 | xargs -0 -I file php -l file > /dev/null
+
+before_deploy:
+  - composer install
+  - ./vendor/bin/phpdoc -d . -i 'vendor/*' -i 'plugins/*' -f 'plugins/DummyPlugin.php' -t "$TRAVIS_BUILD_DIR/build/phpdoc-$TRAVIS_TAG" --title "Pico 1.0 API Documentation ($TRAVIS_TAG)"
+  - ./build/deploy-phpdoc.sh "picocms/Pico" "gh-pages" "$GITHUB_OAUTH_TOKEN" "$TRAVIS_BUILD_DIR/build/phpdoc-$TRAVIS_TAG" "phpDoc/$TRAVIS_TAG"
+  - composer install --no-dev
+  - tar -czf "pico-release-$TRAVIS_TAG.tar.gz" README.md LICENSE CONTRIBUTING.md CHANGELOG.md composer.json composer.lock config content-sample lib plugins themes vendor .htaccess index.php
+
+deploy:
+  provider: releases
+  api_key: ${GITHUB_OAUTH_TOKEN}
+  file: pico-release-$TRAVIS_TAG.tar.gz
+  skip_cleanup: true
+  on:
+    repo: picocms/Pico
+    tags: true
+    php: 5.3
+
+sudo: false

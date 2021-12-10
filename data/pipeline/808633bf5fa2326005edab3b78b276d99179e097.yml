@@ -1,0 +1,71 @@
+language: ruby
+cache: bundler
+sudo: false
+cache:
+  directories:
+    - vendor/bundle
+    - lineman/node_modules
+    - lineman/vendor/bower_components
+
+env:
+  - DB=postgresql
+
+before_install:
+  - export DISPLAY=:99.0
+  - sh -e /etc/init.d/xvfb start
+
+install:
+  - bundle install --without development --deployment --jobs=3 --retry=3
+  - cd lineman
+  - npm install -g bower
+  - npm install -g protractor
+  - npm install
+  - bower install
+  - webdriver-manager update
+  - cd ..
+
+branches:
+  only:
+    - 'master'
+    - 'production'
+    - /^[0-9]+\.[0-9]+$/
+rvm:
+  - 2.2.2
+
+before_script:
+  - nohup bash -c "webdriver-manager start 2>&1 &"
+  - cp config/database.yml.$DB config/database.yml
+  - bundle exec rake db:setup RAILS_ENV=test
+
+script:
+  - bundle exec rake travis
+  - RAILS_ENV=test bundle exec rails server > /dev/null &
+  - cd lineman && lineman spec-ci
+  - lineman run & sleep 10
+  - lineman grunt spec-e2e
+
+addons:
+  postgresql: "9.4"
+  code_climate:
+    repo_token:
+      secure: "RQcqTqhx9hhcWO97ib8s8I8m/ufPbBuKRfEEh4RHNIsBEMpqekaPNHtK+T2ym2pfbCpD+L+0bZ+nMlSCrYz0gklfNnYJlPH4/g1f0SX2OEdq2eUCi9xlRObi9ayXsz7Ujtk14mncNGx+e02TnAtEjtFBT8uyvxn8Ql4djvOTsCg="
+
+deploy:
+  - provider: heroku
+    api_key:
+      secure: Vuc1b8+YURceog2aecwYxHEvdQDHEY2QnNKTcvGzAl7/4FPJ4ZJeEGwURm825BgQwe8LBs9mrAb+VdXboXG6d82HxyTeNKEwhhPqxOmcIGS9Wb9SQpZrSkk6p5Ldtf0VT1dcn8rCPbMu2gxr5L1o30+HClWMEPe62llZloBCALs=
+    app: loomio-clone
+    skip_cleanup: true
+    on:
+      branch: master
+    run:
+      - "bundle exec rake db:migrate"
+  - provider: heroku
+    api_key:
+      secure: Vuc1b8+YURceog2aecwYxHEvdQDHEY2QnNKTcvGzAl7/4FPJ4ZJeEGwURm825BgQwe8LBs9mrAb+VdXboXG6d82HxyTeNKEwhhPqxOmcIGS9Wb9SQpZrSkk6p5Ldtf0VT1dcn8rCPbMu2gxr5L1o30+HClWMEPe62llZloBCALs=
+      app: loomio-test
+      skip_cleanup: true
+      on:
+        branch: user-testing
+    run:
+      - "bundle exec rake db:migrate"

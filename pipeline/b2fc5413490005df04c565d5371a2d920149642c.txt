@@ -1,3 +1,0 @@
-rvm: 1.9.3
-install: true
-script: script/cibuild

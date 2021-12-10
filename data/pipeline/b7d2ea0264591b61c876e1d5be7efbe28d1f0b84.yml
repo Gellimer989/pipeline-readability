@@ -1,0 +1,34 @@
+# The language of this repository
+language:
+    - C
+
+# Only test the master branch
+branches:
+    only:
+        - master
+
+# Indicate to the Makefiles to always use an ARM cross compiler
+env:
+    - ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf-
+
+# Install the needed build tools before testing and installing any dependencies
+# (e.g. ARM cross compiler)
+before_install:
+    - sudo apt-get update
+    - sudo apt-get install -y git
+    - sudo apt-get install -y gcc-arm-linux-gnueabihf
+    - sudo apt-get install -y u-boot-tools
+
+# Clone and build the kernels to build the driver against before testing.
+# These kernels are a 4.x kernel and a 4.x that has the `xilinx_dma.h` header
+# file in a different location.
+install:
+    - git clone --depth 1 https://github.com/Xilinx/linux-xlnx xilinx_linux
+    - cd xilinx_linux
+    - make xilinx_zynq_defconfig
+    - make -j 8 UIMAGE_LOADADDR=0x8000 uImage
+
+# Build the driver against the kernels to verify that it compiles properly
+script:
+    - make KBUILD_DIR=xilinx_linux
+    - make KBUILD_DIR=xilinx_linux clean

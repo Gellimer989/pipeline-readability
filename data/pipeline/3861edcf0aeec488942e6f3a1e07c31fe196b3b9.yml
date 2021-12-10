@@ -1,0 +1,39 @@
+# Documentation: http://docs.travis-ci.com/user/languages/julia/
+sudo: false
+language: julia
+os:
+  - linux
+  - osx
+julia:
+  - 0.4
+  - nightly
+
+# dependent apt packages
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - doxygen
+      - wget
+      - git
+      - libcurl4-openssl-dev
+      - unzip
+      - libatlas-base-dev
+      - libatlas-dev
+      - libopencv-dev
+      - gcc-4.8
+      - g++-4.8
+
+before_install:
+  - export TRAVIS=test/travis
+  - source $TRAVIS/setup_env.sh
+
+notifications:
+  email: false
+
+script:
+  - source $TRAVIS/run_test.sh
+
+after_success:
+  - source $TRAVIS/run_coverage.sh

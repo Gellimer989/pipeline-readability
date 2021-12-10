@@ -1,0 +1,19 @@
+language: php
+
+php:
+  - 5.5
+  - 5.6
+  - 7.0
+  - hhvm
+
+install:
+  - travis_retry composer install
+
+script:
+  - composer test
+  - '[[ "${TRAVIS_PULL_REQUEST}" == "false" ]] && ( composer test-coverage ) || ( echo "Testing PR - No integration tests available")'
+
+notifications:
+  slack:
+    rooms:
+      secure: Xa/LYWGRDOt1Gjw10YTgYmVriSt/MSDOuzqoqQ8OWekJp05C2oRTor8dztEATTM4HQSLrwTa8CTnkFyD8+Z4fbnuvQ0dJ4j5CJYs5AjyirEWwblqS0PIATEEGKffDocsMh4VyMEPSwWXZY319bvG79mUq0E57VmT3y2ROMUuuec=

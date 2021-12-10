@@ -1,0 +1,53 @@
+sudo: false
+
+# language: csharp installs mono/dotnet but has limited python.
+language: python
+python:
+  - 2.7
+  - 3.3
+  - 3.4
+  - 3.5
+  - 3.6
+  - 3.7-dev
+
+matrix:
+  allow_failures:
+    - python: 3.7-dev
+
+env:
+  global:
+    - LD_PRELOAD=/lib/x86_64-linux-gnu/libSegFault.so
+    - SEGFAULT_SIGNALS=all
+    - PYTHONUNBUFFERED=True
+
+addons:
+  apt:
+    sources:
+      - mono
+      - mono-libtiff-compat
+    packages:
+      - mono-devel
+      - ca-certificates-mono
+
+install:
+  - pip install --upgrade pycparser coverage codecov pytest
+  # setup.py install works too, but need to deal w Python.test then
+  - coverage run setup.py build_ext --inplace
+
+script:
+  # Set-up and run python tests
+  - export PYTHONPATH=`pwd`:$PYTHONPATH
+  - python -m pytest
+
+  # Run embedded tests
+  - mono ./packages/NUnit.*/tools/nunit3-console.exe src/embed_tests/bin/Python.EmbeddingTest.dll
+
+after_success:
+  # Uncomment if need to geninterop, ie. py37 final
+  # - python tools/geninterop/geninterop.py
+
+  # Waiting on mono-cov support or SharpCover
+  - codecov
+
+notifications:
+  email: false

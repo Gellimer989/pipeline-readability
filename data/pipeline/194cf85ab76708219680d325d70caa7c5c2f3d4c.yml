@@ -1,0 +1,75 @@
+dist: xenial
+language: python
+group: edge
+python: 3.6
+os: linux
+
+matrix:
+  include:
+    - env: DOCKER=archlinux
+      services: docker
+    - env: DOCKER=archlinux-webengine QUTE_BDD_WEBENGINE=true
+      services: docker
+    - env: TESTENV=py36-pyqt571
+    - python: 3.5
+      env: TESTENV=py35-pyqt571
+    - env: TESTENV=py36-pyqt59
+    - env: TESTENV=py36-pyqt510
+      addons:
+        apt:
+          packages:
+          - xfonts-base
+    - env: TESTENV=py36-pyqt511-cov
+    - python: 3.7
+      env: TESTENV=py37-pyqt511
+    - env: TESTENV=py36-pyqt512
+    - os: osx
+      env: TESTENV=py37 OSX=sierra
+      osx_image: xcode9.2
+      language: generic
+    # https://github.com/qutebrowser/qutebrowser/issues/2013
+    # - os: osx
+    #   env: TESTENV=py35 OSX=yosemite
+    #   osx_image: xcode6.4
+    - env: TESTENV=pylint
+    - env: TESTENV=flake8
+    - env: TESTENV=mypy
+    - env: TESTENV=docs
+      addons:
+         apt:
+           packages:
+           - asciidoc
+    - env: TESTENV=vulture
+    - env: TESTENV=misc
+    - env: TESTENV=pyroma
+    - env: TESTENV=check-manifest
+    - env: TESTENV=eslint
+      language: node_js
+      python: null
+      node_js: "lts/*"
+    - language: generic
+      env: TESTENV=shellcheck
+      services: docker
+  fast_finish: true
+  allow_failures:
+    - env: DOCKER=archlinux-webengine QUTE_BDD_WEBENGINE=true
+      services: docker
+    - env: TESTENV=py36-pyqt512
+
+cache:
+  directories:
+    - $HOME/.cache/pip
+    - $HOME/build/qutebrowser/qutebrowser/.cache
+
+install:
+  - bash scripts/dev/ci/travis_install.sh
+  - ulimit -c unlimited
+
+script:
+  - bash scripts/dev/ci/travis_run.sh
+
+after_success:
+  - '[[ $TESTENV == *-cov ]] && codecov -e TESTENV -X gcov'
+
+after_failure:
+  - bash scripts/dev/ci/travis_backtrace.sh

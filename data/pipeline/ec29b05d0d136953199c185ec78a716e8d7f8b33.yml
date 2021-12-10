@@ -1,0 +1,64 @@
+sudo: false
+language: python
+cache: pip  # use caching for pip's packages to speed up builds
+
+branches:
+  only:
+  - master
+
+matrix:
+  include:
+  - os: linux
+    python: 2.7
+  - os: linux
+    python: 3.4
+  - os: linux
+    python: 3.5
+  - os: linux
+    python: 3.6
+  - os: osx
+    language: generic
+
+addons:
+  firefox: "54.0"
+  apt:
+    packages:
+      - oracle-java8-set-default
+      - mono-complete
+
+before_install:
+- export DISPLAY=:99.0
+- if [ "$TRAVIS_OS_NAME" = "linux" ]; then sh -e /etc/init.d/xvfb start; fi
+- (if [ "$TRAVIS_OS_NAME" = "osx" ]; then sudo xvfb :99; fi)&
+
+install:
+- |
+  if [ "$TRAVIS_OS_NAME" = "linux" ]; then
+    mono --version
+  else
+    rvm get stable
+  fi
+  nvm install 6.11
+  nvm use 6.11
+  gem install rspec
+  pip install pip --upgrade
+  pip install -r requirements.txt
+  pip install -r tests/ci/requirements.txt
+
+script:
+- |
+  if [ "$TRAVIS_OS_NAME" = "linux" ]; then
+    coverage run  --source=. `which nosetests` tests -v --exclude-dir=tests/resources  --exclude-dir=tests/ci
+  else
+    coverage run  --source=. `which nosetests` tests -v \
+      --exclude-dir=tests/resources  \
+      --exclude-dir=tests/ci --exclude-test=tests.modules.selenium.test_csharp
+    #  tests/ci/build-brew.sh
+  fi
+
+after_success:
+- if [ "$TRAVIS_OS_NAME" = "linux" ]; then coverage report -m; fi
+- if [ "$TRAVIS_OS_NAME" = "linux" ]; then codecov; fi
+
+
+

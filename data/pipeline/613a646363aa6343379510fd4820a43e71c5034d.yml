@@ -1,0 +1,29 @@
+language: node_js
+services:
+  - docker
+notifications:
+  email: false
+node_js:
+  - 9
+  - 8
+os:
+  - linux
+
+# Trigger a push build on caribou and greenkeeper branches + PRs build on every branches
+# Avoid double build on PRs (See https://github.com/travis-ci/travis-ci/issues/1147)
+branches:
+  only:
+    - caribou
+    - /^greenkeeper.*$/
+
+# Retry install on fail to avoid failing a build on network/disk/external errors
+install:
+  - travis_retry npm install
+
+script:
+  - git config --get user.email
+  - npm run test
+
+after_success:
+  - npm run codecov
+  - npm run semantic-release

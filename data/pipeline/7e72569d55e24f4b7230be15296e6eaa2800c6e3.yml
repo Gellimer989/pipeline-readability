@@ -1,0 +1,17 @@
+language: python
+sudo: required
+services:
+  - docker
+branches:
+  # Restrict push builds to only master
+  only:
+  - master
+before_install:
+  # Fail immediately on any error
+  - set -e
+install:
+  # Build containers
+  # Use BUILD_MODE=pull if you prefer pulling existing images
+  - make build-tests
+script:
+  - make tests

@@ -1,0 +1,68 @@
+cache:
+  directories:
+  - projects/com.oracle.truffle.llvm.tools/tools
+sudo: required
+language: java
+python:
+  - "2.7"
+addons:
+  apt:
+    sources:
+    - deadsnakes
+    packages:
+    - python2.7
+    - gcc-4.6
+    - g++-4.6
+    - gfortran-4.6
+    - libgmp3-dev
+    - clang-format-3.4
+    - gobjc++-4.6
+    - gcc-4.6-plugin-dev
+    - libxml2-dev
+    - libssl-dev
+install:
+  - export MX_BINARY_SUITES="jvmci"
+  - gem install mdl
+  - pip install astroid==1.1.0 --user `whoami`
+  - pip install pylint==1.1.0 --user `whoami`
+  - git clone https://github.com/graalvm/mx
+  - wget -O mx/ecj.jar 'https://lafo.ssw.uni-linz.ac.at/pub/sulong-deps/ecj-4.5.2.jar'
+  - export JDT=`pwd`/mx/ecj.jar
+  - wget https://lafo.ssw.uni-linz.ac.at/pub/sulong-deps/eclipse-jdk8-linux-x86_64.tar.gz
+  - tar -xvzf eclipse-jdk8-linux-x86_64.tar.gz
+  - export ECLIPSE_EXE=eclipse/eclipse
+  - export DEFAULT_VM=server
+  - export PATH=`pwd`/mx:$PATH
+  - wget https://github.com/dougxc/openjdk8-jvmci-builder/releases/download/jvmci-0.21/jdk1.8.0_91-jvmci-0.21-linux-amd64.tar.gz
+  - tar -xzf jdk1.8.0_91-jvmci-0.21-linux-amd64.tar.gz
+  - export JAVA_HOME=`pwd`/jdk1.8.0_91-jvmci-0.21
+script:
+  - $TEST_COMMAND
+branches:
+  only:
+    - master
+matrix:
+  fast_finish: true
+  include:
+  - env: TEST_COMMAND='mx eclipseformat --primary' CLANG='suite version (3.2)'
+    jdk: oraclejdk8
+  - env: TEST_COMMAND='mx basic-checkcode --verbose' CLANG='suite version (3.2)'
+    jdk: oraclejdk8
+  - env: TEST_COMMAND='mx pylint' CLANG='suite version (3.2)'
+    jdk: oraclejdk8
+  - env: TEST_COMMAND='mx su-travis1' CLANG='suite version (3.2)'
+    jdk: oraclejdk8
+  - env: TEST_COMMAND='mx su-travis2' CLANG='suite version (3.2)'
+    jdk: oraclejdk8
+  - env: TEST_COMMAND='mx su-travis3' CLANG='suite version (3.2)'
+    jdk: oraclejdk8
+  - env: TEST_COMMAND='mx su-travis4' CLANG='suite version (3.2)'
+    jdk: oraclejdk8
+  - env: TEST_COMMAND='mx su-travis-sulong' CLANG='suite version (3.2)'
+    jdk: oraclejdk8
+  - env: TEST_COMMAND='mx su-travis-jruby' LIBXML_LIB_HOME=/usr/lib/x86_64-linux-gnu OPENSSL_LIB_HOME=/usr/lib/x86_64-linux-gnu CLANG='suite version (3.2)'
+    jdk: oraclejdk8
+  - env: TEST_COMMAND='mx su-travis-argon2' CLANG='suite version (3.2)'
+    jdk: oraclejdk8
+after_failure:
+  - find . -iname "*.log" -print0 | xargs -0 cat

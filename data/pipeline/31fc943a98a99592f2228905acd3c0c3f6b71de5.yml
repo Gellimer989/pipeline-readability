@@ -1,0 +1,33 @@
+language: python
+
+env:
+  - TOXENV=pep8
+  - TOXENV=py3pep8
+  - TOXENV=docs
+  - TOXENV=py26
+  - TOXENV=py27
+  - TOXENV=py32
+  - TOXENV=py33
+  - TOXENV=py34
+  - TOXENV=pypy
+
+before_install:
+  - "[ -d ~/.distlib ] && sudo chown -R travis:travis ~/.distlib || true"
+
+install: .travis/install.sh
+
+script: .travis/run.sh
+
+branches:
+  only:
+    - develop
+    - 1.3.X
+    - 1.4.X
+    - 1.5.X
+
+notifications:
+  irc:
+    channels:
+      - "irc.freenode.org#pypa-dev"
+    use_notice: true
+    skip_join: true

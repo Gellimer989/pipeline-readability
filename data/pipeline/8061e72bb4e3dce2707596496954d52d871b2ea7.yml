@@ -1,0 +1,84 @@
+language: php
+
+dist: trusty
+
+sudo: false
+
+addons:
+  apt:
+    packages:
+      - tidy
+
+matrix:
+  include:
+    # Framework tests
+    - php: 5.4
+      env: DB=PGSQL
+      services:
+       - postgresql
+
+    - php: 7.0
+      env: DB=SQLITE
+
+    - php: 7.1
+      env: DB=SQLITE
+
+    - php: 7.2
+      env: DB=MYSQL PDO=1
+      services:
+       - mysql
+
+    - php: 7.3.0RC1
+      env: DB=SQLITE
+      sudo: required
+      dist: xenial
+      addons:
+        apt:
+          packages:
+            - libzip4
+
+    # CMS test
+    - php: 5.5
+      env: DB=MYSQL CMS_TEST=1
+      services:
+       - mysql
+
+    # Behat tests
+    - php: 5.6
+      env: DB=MYSQL BEHAT_TEST=1
+      addons:
+        firefox: "31.0"
+    - php: 7.1
+      env: DB=MYSQL BEHAT_TEST=1 CMS_TEST=1
+      addons:
+        firefox: "31.0"
+
+before_script:
+ # Fix bug in Selenium with duplicate localhost definitions: https://github.com/travis-ci/travis-ci/issues/3054
+ - "sed 's/localhost localhost/localhost/' /etc/hosts > /tmp/etchoststmp && cat /tmp/etchoststmp | sudo tee /etc/hosts"
+
+ - export CORE_RELEASE=$TRAVIS_BRANCH
+ - if ! [ $(phpenv version-name) = "5.3" ]; then printf "\n" | travis_retry pecl install imagick; fi
+ - if [ $(phpenv version-name) = "5.3" ]; then printf "\n" | travis_retry pecl install imagick-3.3.0; fi
+ - composer self-update || true
+ - phpenv rehash
+ - phpenv config-rm xdebug.ini || true
+ - echo 'memory_limit = 2G' >> ~/.phpenv/versions/$(phpenv version-name)/etc/conf.d/travis.ini
+ - git clone git://github.com/silverstripe-labs/silverstripe-travis-support.git ~/travis-support
+ - "if [ \"$BEHAT_TEST\" = \"\" ] && [ \"$CMS_TEST\" = \"\" ]; then php ~/travis-support/travis_setup.php --source `pwd` --target ~/builds/ss; fi"
+ - "if [ \"$BEHAT_TEST\" = \"1\" ] && [ \"$CMS_TEST\" = \"\" ]; then php ~/travis-support/travis_setup.php --source `pwd` --target ~/builds/ss --require silverstripe/behat-extension; fi"
+ - "if [ \"$BEHAT_TEST\" = \"\" ] && [ \"$CMS_TEST\" = \"1\" ]; then php ~/travis-support/travis_setup.php --source `pwd` --target ~/builds/ss --require silverstripe/cms:$CORE_RELEASE.x-dev; fi"
+ - "if [ \"$BEHAT_TEST\" = \"1\" ] && [ \"$CMS_TEST\" = \"1\" ]; then php ~/travis-support/travis_setup.php --source `pwd` --target ~/builds/ss --require silverstripe/behat-extension,silverstripe/cms:$CORE_RELEASE.x-dev; fi"
+ - cd ~/builds/ss
+ - php ~/travis-support/travis_setup_selenium.php --if-env BEHAT_TEST
+ - php ~/travis-support/travis_setup_php54_webserver.php --if-env BEHAT_TEST
+
+script:
+ - "if [ \"$BEHAT_TEST\" = \"\" ] && [ \"$CMS_TEST\" = \"\" ]; then vendor/bin/phpunit framework/tests; fi"
+ - "if [ \"$BEHAT_TEST\" = \"\" ] && [ \"$CMS_TEST\" = \"\" ]; then vendor/bin/phpunit framework/admin/tests; fi"
+ - "if [ \"$BEHAT_TEST\" = \"1\" ] && [ \"$CMS_TEST\" = \"\" ]; then vendor/bin/behat @framework; fi"
+ - "if [ \"$BEHAT_TEST\" = \"\" ] && [ \"$CMS_TEST\" = \"1\" ]; then vendor/bin/phpunit cms/tests; fi"
+ - "if [ \"$BEHAT_TEST\" = \"1\" ] && [ \"$CMS_TEST\" = \"1\" ]; then vendor/bin/behat @cms; fi"
+
+after_failure:
+ - php ~/travis-support/travis_upload_artifacts.php --if-env BEHAT_TEST,ARTIFACTS_KEY --target-path $TRAVIS_REPO_SLUG/$TRAVIS_BUILD_ID/$TRAVIS_JOB_ID --artifacts-base-url https://s3.amazonaws.com/$ARTIFACTS_BUCKET/

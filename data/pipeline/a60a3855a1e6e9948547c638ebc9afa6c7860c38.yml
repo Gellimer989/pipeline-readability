@@ -1,0 +1,31 @@
+language: cpp
+
+sudo: false
+
+addons:
+  postgresql: "9.3"
+
+matrix:
+  include:
+    - os: osx
+      compiler: clang
+      env: JOBS=12
+    - os: linux
+      compiler: clang
+      env: JOBS=12
+    - os: linux
+      compiler: gcc
+      env: JOBS=6
+
+install:
+ - if [[ $(uname -s) == 'Linux' ]]; then psql -U postgres -c 'create database template_postgis;' -U postgres; psql -U postgres -c 'create extension postgis;' -d template_postgis -U postgres; fi;
+
+script:
+ - source bootstrap.sh
+ - wget https://gist.githubusercontent.com/springmeyer/0833fa43794838889139/raw/build_pycairo.sh && chmod +x build_pycairo.sh && ./build_pycairo.sh
+ - export PYTHONPATH=$(pwd)/mason_packages/.link/lib/python2.7/site-packages:${PYTHONPATH}
+ - ./configure
+ - make
+ - git clone --depth=1 https://github.com/mapbox/mapnik-test-data tests/data/mapnik-test-data
+ - make test
+ - make bench

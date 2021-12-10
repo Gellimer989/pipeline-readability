@@ -1,0 +1,93 @@
+language: php
+
+dist: trusty
+
+php:
+  - '5.6'
+  - '7.0'
+  - '7.1'
+  # phalcon/breadcrumbs v1.3.1 requires php >= 5.5 <7.2
+  # - '7.2'
+
+git:
+  depth: 1
+
+cache:
+  apt: true
+  timeout: 604800
+  directories:
+    - $HOME/.composer/cache
+
+env:
+  global:
+    - PHALCON_VERSION="3.4.3"
+    - TRAVIS_FLAGS="--ansi --prefer-dist --no-interaction --optimize-autoloader --no-suggest --no-progress"
+
+before_install:
+  - |
+      # general settings
+      set -e
+      stty cols 120
+
+      # disable xdebug
+      phpenv config-rm xdebug.ini || true
+
+      if [ -n "$GH_TOKEN" ]; then
+        composer config github-oauth.github.com ${GH_TOKEN}
+        printf "Add Github token\n"
+      fi
+
+      # turn the detached message off
+      git config --global advice.detachedHead false
+
+install:
+  # install phalcon
+  - |
+      git clone -q --depth=1 https://github.com/phalcon/cphalcon.git -b v${PHALCON_VERSION} /tmp/phalcon
+      cd /tmp/phalcon/build
+      bash ./install --phpize $(phpenv which phpize) --php-config $(phpenv which php-config)
+      echo extension=phalcon.so >> $(phpenv root)/versions/$(phpenv version-name)/etc/conf.d/travis.ini
+      $(phpenv which php) --ri phalcon
+
+  # install memcached
+  - cd $TRAVIS_BUILD_DIR
+  - phpenv config-add $TRAVIS_BUILD_DIR/tests/_ci/memcached.ini
+  - $(phpenv which php) --ri memcached
+
+  # install project dependenices
+  - cd $TRAVIS_BUILD_DIR
+  - travis_retry composer install $TRAVIS_FLAGS
+
+before_script:
+  - echo 'CREATE DATABASE phosphorum CHARSET=utf8 COLLATE=utf8_unicode_ci' | mysql -u root
+  - echo "CREATE USER 'phosphorum'@'%' IDENTIFIED BY 'secret'" | mysql -u root
+  - echo "GRANT ALL PRIVILEGES ON phosphorum.* TO 'phosphorum'@'%' WITH GRANT OPTION" | mysql -u root
+  - cat schemas/forum.sql | mysql -u root phosphorum
+  - cp ./tests/.env.travis .env
+  - php -S 127.0.0.1:8000 -t public/ .htrouter.php >/dev/null 2>&1 &
+
+script:
+  - vendor/bin/phpcs
+  - vendor/bin/codecept build
+  - vendor/bin/codecept run unit
+  - vendor/bin/codecept run functional
+  - vendor/bin/codecept run acceptance
+  - vendor/bin/codecept run console
+
+notifications:
+  email:
+    recipients:
+      - build@phalconphp.com
+    on_success: change
+    on_failure: always
+
+addons:
+  apt:
+    packages:
+      - beanstalkd
+      - mysql-server-5.6
+      - mysql-client-core-5.6
+      - mysql-client-5.6
+  hosts:
+    - db
+    - pforum.loc

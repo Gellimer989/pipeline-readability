@@ -1,0 +1,31 @@
+language: csharp
+solution: src/Reko-decompiler.sln
+sudo: required
+
+#addons:
+#  apt:
+#    sources:
+#      - sourceline: 'ppa:ubuntu-toolchain-r/test'
+#    packages:
+#      - gcc-7
+#      - g++-7
+
+cache:
+  directories:
+    - $HOME/apt_cache
+
+before_install:
+  - source .travis_env
+  - before_install
+
+install:
+  - nuget restore src/Reko-decompiler.sln
+  - nuget install NUnit.Console -Version 3.9.0 -OutputDirectory testrunner
+
+# If you want more build spew, change the /verbosity:minimal below
+script:
+  - source .travis_env
+  - msbuild /version
+  - msbuild /restore /p:Configuration=UnixRelease /p:Platform=x64 /verbosity:minimal src/Reko-decompiler.sln
+  - mono ./testrunner/NUnit.ConsoleRunner.3.9.0/tools/nunit3-console.exe ./src/UnitTests/bin/x64/UnixRelease/Reko.UnitTests.dll --where="cat != FailedTests && cat != UserInterface"
+  - python ./subjects/regressionTests.py --check-output --platform=x64 --configuration=UnixRelease

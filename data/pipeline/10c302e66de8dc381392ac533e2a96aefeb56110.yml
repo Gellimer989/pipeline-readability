@@ -1,0 +1,39 @@
+language: python
+python:
+- 2.7
+install:
+- pip install -r requirements.txt
+- pip install .
+- pip install -e git+https://github.com/napalm-automation/napalm-base.git@develop#egg=napalm-base
+
+deploy:
+  provider: pypi
+  user: dbarroso
+  password:
+    secure: ozv9Lic7tX6Qm0R2zlUGtn/jgydKhOt3GEBnVD+x2CbtNfTsI2WPwkRABa8kcuuZvZYUVePYVnsB1qZ1UO2US8Bly80eaCw4+vOtLVZO3PNLynU9yrtN5yYfQEAkUep+FYsBaBKqfoap6qoSdl7uK/InqfVLkaP44UmOpqm4xktqcf6Gj93Qefpht781LPl9FF00hWY/XisNB7XdwEOysez2VvRxIAJ80jZAn5EK/iZq9rO3UgRlljn1bQYLd8ZTL+VdmPkQ0sfZTWpH8fhKXiUqZx9Xy/kgaXqtjEMeOkOrvyevisrBwEVa1Zo/TK1j4SjpKEqxIPEV5V2M6oTsVMsWyKQrTFYvabmGM9CS09c64kdHArP0DTdR853C7tAIUzWXuHCtNm9GYNjlYIHyjjpZ+HjtO3btiBMW22bTb2l6vlc6o0eSmSyMwc2pQIC390fL4cKfKgVJHLRfecjjovvakTMlPfJCkLeKSYXodpTOyDME7p0ZpEEqI/neLv96qBmWvY+KssA1VMCKOI9y53vmu2BQ4Nb9yxzsQT/fD534MpxHaiydyY8FCW9b/gcfZ5dEikaWTNQtDlWzQQ5HwKHwrk+IPZBpYAptnDn0CFUOw+hU+v7gXOp1+vHmq1XMYihcVQzA5dSUnyFBcMw1wf4JUsifnNQAdpqPbxOvjWw=
+  on:
+    tags: true
+    branch: master
+script:
+- cd test/unit
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_arp_table
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_bgp_config
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_bgp_neighbors
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_bgp_neighbors_detail
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_environment
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_facts
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_interfaces
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_interfaces_counters
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_interfaces_ip
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_lldp_neighbors
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_lldp_neighbors_detail
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_mac_address_table
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_ntp_stats
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_ntp_peers
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_route_to
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_snmp_information
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_probes_config
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_probes_results
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_traceroute
+- nosetests -v TestIOSXRDriver:TestGetterIOSXRDriver.test_get_users
+- cd ../..

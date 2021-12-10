@@ -1,0 +1,44 @@
+language: node_js
+node_js:
+    - '6'
+matrix:
+    include:
+        - env: DOCS=full FC_TASK=docs
+          sudo: false
+          node_js :
+            - '6'
+        - env: SYSTEST=embedded FC_TASK=systest
+        - env: SYSTEST=web FC_TASK=systest
+        - env: SYSTEST=hlf SYSTEST_HLF=hlf  FC_TASK=systest
+          sudo: required
+          services:
+            - docker
+        - env: SYSTEST=hlf SYSTEST_HLF=ibm FC_TASK=systest
+          sudo: required
+          services:
+            - docker
+dist: trusty
+addons:
+    apt:
+        packages:
+            - graphviz
+before_install: |
+    date
+    ./.travis/before-install.sh
+    date
+install: |
+    date
+    travis_wait 30 ./.travis/install.sh
+    date
+script: ./.travis/script.sh
+deploy:
+    provider: script
+    script: ./.travis/deploy.sh
+    skip_cleanup: true
+    on:
+        all_branches: true
+cache: false
+sudo: required
+notifications:
+  pushover:
+    api_key: ayq7zvsxc641sfna65njkik1x9y25b

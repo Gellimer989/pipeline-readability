@@ -1,0 +1,107 @@
+language: cpp
+compiler:
+  - gcc
+
+#For Ubuntu Trusty (14.04 LTS)
+dist: trusty
+
+env:
+  matrix:
+    - xGSL=0 xMPI=0 xPYTHON=0
+    - xGSL=0 xMPI=0 xPYTHON=1
+    - xGSL=0 xMPI=1 xPYTHON=0
+    - xGSL=0 xMPI=1 xPYTHON=1
+    - xGSL=1 xMPI=0 xPYTHON=0
+    - xGSL=1 xMPI=0 xPYTHON=1
+    - xGSL=1 xMPI=1 xPYTHON=0
+    - xGSL=1 xMPI=1 xPYTHON=1
+matrix:
+  # do notify immediately about it when a job of a build fails.
+  fast_finish: true
+cache:
+  apt: true 
+  ccache: true
+  pip: true
+
+before_install:
+  # see https://github.com/travis-ci/travis-ci/issues/4948
+  # make sure, that the system provided Python version will be used and not some
+  # external TravisCI Python version.
+  #- echo $PATH
+  - export PATH="/home/travis/bin:/home/travis/.local/bin:/home/travis/.gimme/versions/go1.5.1.linux.amd64/bin:/home/travis/.local/bin:/usr/local/rvm/gems/ruby-2.2.3/bin:/usr/local/rvm/gems/ruby-2.2.3@global/bin:/usr/local/rvm/rubies/ruby-2.2.3/bin:/home/travis/.phpenv/shims:/usr/local/phantomjs/bin:/usr/local/phantomjs:/home/travis/perl5/perlbrew/bin:/home/travis/.nvm/versions/node/v4.1.2/bin:./node_modules/.bin:/usr/local/maven-3.1.1/bin:/usr/local/gradle/bin:/usr/local/clang-3.5.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/travis/.phpenv/bin:/usr/local/rvm/bin"
+
+  # get repository for clang-3.6 stuff (including clang-format-3.6)
+  - sudo sh -c 'echo -n "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.6 main" >> /etc/apt/sources.list'
+  # add key from ^ repository
+  - wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | sudo apt-key add -
+
+  # update package repository status (-qq is more quiet)
+  - sudo rm -rf /var/lib/apt/lists/*
+  - ls /etc/apt/sources.list.d/
+  - sudo apt-get update -qq
+
+  # remove any obsolete libraries
+  - sudo apt-get autoremove
+
+  # from installation webpage http://www.nest-simulator.org/installation-2/#Standard_configuration
+  - sudo apt-get install -y build-essential autoconf automake libtool libltdl7-dev libreadline6-dev libncurses5-dev libgsl0-dev python-all-dev python-numpy python-scipy python-matplotlib ipython
+
+  # Install pip and cython
+  - wget https://raw.github.com/pypa/pip/master/contrib/get-pip.py
+  - sudo python get-pip.py
+  - sudo pip install -U setuptools
+  - pip install --user cython==0.23.4
+
+  # MPI
+  - sudo apt-get install -y openmpi-bin libopenmpi-dev
+
+  # python testsuite nosetests
+  - sudo apt-get install -y python-nose
+
+  # static code analysis
+  - sudo apt-get install -y libllvm3.6 clang-format-3.6 vera++
+
+  # used for building cppcheck-1.69
+  - sudo apt-get install -y libpcre3 libpcre3-dev
+
+  # process json output from github api
+  - sudo apt-get install -y jq
+
+install: 
+  - which cython
+  - cython --version
+  - which python
+  - python --version
+  - which pip
+
+before_script:
+  - chmod +x build.sh 
+
+script: ./build.sh  
+
+before_deploy:
+  - cd $TRAVIS_BUILD_DIR/build
+  - tar -zcvf logfiles.tar.gz ./*.log
+  - tar -zcvf reports.tar.gz ./reports 
+  - mkdir -p $TRAVIS_BUILD_DIR/build/artefacts_upload
+  - mv logfiles.tar.gz $TRAVIS_BUILD_DIR/build/artefacts_upload
+  - mv reports.tar.gz $TRAVIS_BUILD_DIR/build/artefacts_upload
+
+#S3 deployment    
+
+deploy:
+  provider: s3
+  access_key_id:
+    secure: $ARTIFACTS_KEY
+  secret_access_key:
+    secure: $ARTIFACTS_SECRET
+  bucket: "nest-travis-artefacts"
+  region: eu-central-1
+  skip_cleanup: true
+  on:
+    repo: nest/nest-simulator
+    branch: master
+  local-dir: "$TRAVIS_BUILD_DIR/build/artefacts_upload"
+  upload-dir: "$TRAVIS_REPO_SLUG/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER"
+  acl: bucket_owner_full_control
+

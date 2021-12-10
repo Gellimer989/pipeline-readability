@@ -1,0 +1,55 @@
+language: c
+
+matrix:
+  include:
+    - os: linux
+      compiler: gcc
+      cache: apt
+      dist: xenial
+
+    - os: osx
+      compiler: clang
+
+addons:
+  apt:
+    packages:
+      - libusb-1.0-0-dev
+      - libfftw3-dev
+      - dfu-util
+      - gcc-arm-none-eabi
+      - libnewlib-arm-none-eabi
+      - python-yaml
+
+  homebrew:
+    taps: PX4/homebrew-px4
+    packages:
+       - fftw
+       - gcc-arm-none-eabi
+       - dfu-util
+
+before_install:
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then pip install PyYAML; fi
+
+before_script:
+  - export CFLAGS="-Wall -Wextra -Werror"
+
+script:
+  - mkdir host/build
+  - cd host/build
+  - cmake ..
+  - make
+  - cd ../..
+  - mkdir firmware/build-hackrf-one
+  - mkdir firmware/build-jawbreaker
+  - mkdir firmware/build-rad1o
+  - cd firmware/libopencm3
+  - make
+  - cd ../build-hackrf-one
+  - cmake ..
+  - make
+  - cd ../build-jawbreaker
+  - cmake -DBOARD=JAWBREAKER ..
+  - make
+  - cd ../build-rad1o
+  - cmake -DBOARD=RAD1O ..
+  - make

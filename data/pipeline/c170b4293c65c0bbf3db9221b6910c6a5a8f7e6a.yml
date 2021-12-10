@@ -1,0 +1,60 @@
+language: cpp
+
+matrix:
+  exclude:
+    - os: linux
+  include:
+    - os: linux
+      env: BUILDTYPE=Release JOBS=16 MASON_PLATFORM=android
+      compiler: clang
+    - os: linux
+      env: BUILDTYPE=Debug JOBS=16
+      compiler: clang
+    - os: linux
+      env: BUILDTYPE=Release JOBS=8
+      compiler: gcc
+    - os: osx
+      env: BUILDTYPE=Debug JOBS=8
+      compiler: clang
+
+env:
+  global:
+   - secure: "bG4YYWMfl9API0MSRgmOaJrlGLv06tRg9KJNawBieZvBJbITPpxVGJZT3/l/SEJ+Rl15e2dRex4k+MGQlmT2SqPQxTEYWv1qxNigKPPcla7IWeNmWWqW8uVvFjdglojgBOK2k/xErVQtA4zDfi3mwSXH4DKwquXWsoEKmX2SV7M="
+   - secure: "Cbvap9ubVKgjPe3hUhI6JGeDZzBXHpOG9RaYKh+SdoIPhKnlJiNOYm1egomi+e4uqJInlFKuVHTw7Ng9Cun6Zm0jIxpkSchv1GpsR7hmB3UGnGed19Dw8121FwuUaktN+4YnbVlsyd+u8EHD3+h58t4eELrLrZolM4rS7DL6caA="
+   - secure: "RiBIBfVhhaMjU5ksuwJO3shdvG9FpinBjdSv4co9jg9171SR8edNriedHjVKSIeBhSGNmZmX+twS3dJS/By6tl/LKh9sTynA+ZAYYljkE7jn881B/gMrlYvdAA6og5KvkhV1/0iJWlhuZrMTkhpDR200iLgg3EWBhWjltzmDW/I="
+   - LD_LIBRARY_PATH: '/usr/local/lib'
+   - TERM=dumb
+
+before_install:
+- source ./scripts/local_mason.sh
+- source ./scripts/travis_helper.sh
+- source ./scripts/flags.sh
+- export ANDROID_NDK_PATH="$(pwd)/android-ndk-r10c"
+- export NDK_HOME="$(pwd)/android-ndk-r10c"
+- export JAVA_HOME="$(pwd)/jdk1.7.0_71"
+- export ANDROID_HOME="$(pwd)/android-sdk-linux"
+- ./scripts/travis_before_install.sh
+- if [[ ${TRAVIS_OS_NAME} == "linux" ]]; then export LD_LIBRARY_PATH=`mason prefix mesa 10.3.1`/lib; fi
+- if [[ ${TRAVIS_OS_NAME} == "linux" ]]; then glxinfo; fi
+
+install:
+- make config.gypi
+- ulimit -c
+
+before_script:
+ # Set the core file limit to unlimited so a core file is generated upon crash
+ - ulimit -c unlimited -S
+
+script:
+- ./scripts/travis_script.sh
+
+notifications:
+  hipchat:
+    rooms:
+      secure: "SgMjGDp8MP+UTAY/aWJwSQH2hv1Q0vhEc1BdIde59+lEL3u6gNMSexUTSJoVxRlIQTFXDJBU7v58ISdgJX8cPa+UvIC8hhLsayM+cbm+J3jgy7V9E9wllq3RpmXN33TxY7nwKgWdIms2t9YKZco3y4dKKAUyHXrtMvw8NNPQM+4="
+    template:
+      - 'Build <a href="%{build_url}">#%{build_number}</a>: %{author} tested <a href="%{compare_url}">%{commit}</a> in branch <a href="https://github.com/%{repository_slug}/tree/%{branch}">%{branch}</a> of <a href="https://github.com/%{repository_slug}">%{repository_name}</a>: <b>%{commit_message}</b><br>%{message} (%{duration})'
+    format: html
+
+git:
+  submodules: false

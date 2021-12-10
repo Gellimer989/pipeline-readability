@@ -1,0 +1,36 @@
+language: php
+
+sudo: false
+
+matrix:
+    include:
+        - php: 7.1
+          # add variables to enable coverage, coding standard check and static analysis
+          env: PHPUNIT_FLAGS="--coverage-clover coverage.xml"
+
+install:
+    # install composer dependencies
+    - composer install
+
+script:
+    # run tests
+    - vendor/bin/phpunit $PHPUNIT_FLAGS
+    # check coding standard (defined in composer.json "scripts" section)
+    - composer check-cs
+    # check with phpstan (defined in composer.json "scripts" section)
+    - composer phpstan
+
+after_script:
+    # upload coverage.xml file to Scrutinizer to analyze it
+    - |
+        if [[ $PHPUNIT_FLAGS != "" ]]; then
+            wget https://scrutinizer-ci.com/ocular.phar
+            php ocular.phar code-coverage:upload --format=php-clover coverage.xml
+        fi
+    - ./generate-api.sh
+
+notifications:
+    email:
+        # temporary disable, many errors coming
+        on_success: never
+        on_failure: never

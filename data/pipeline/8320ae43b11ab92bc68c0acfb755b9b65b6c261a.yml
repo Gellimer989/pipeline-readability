@@ -1,0 +1,92 @@
+os: linux
+dist: bionic
+language: c
+env:
+  global:
+    # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created via
+    # the "travis encrypt" command using the project repo's public key
+    - secure: "Uodrn3x36plX2yk4+c7eimCuv7j6p6n1XCNbNEYxibRX77730eQMCVS0BvM40OgD7m5K9s2hIQaMV7EMj3qKuRmemULDVJVTgNd1fbx6t4BhYh+Hrf6FhsNcm9nFxvQQrdJAVSOwIAlrUilVFotDRt9qKqLwwZiBKIs5gBPcHQY="
+
+addons:
+  # TODO: Is this addon still actively used?
+  coverity_scan:
+    project:
+      name: "DaveDavenport/rofi"
+      description: "Build submitted via Travis CI"
+    notification_email: qball@gmpclient.org
+    build_command_prepend: "meson setup build"
+    build_command: "ninja -C build"
+    branch_pattern: coverity_scan
+  apt:
+    packages:
+      - check
+      - discount
+      - doxygen
+      - fluxbox
+      - gdb
+      - graphviz
+      - lcov
+      - libpango1.0-dev
+      - libstartup-notification0-dev
+      - libxcb-ewmh-dev
+      - libxcb-icccm4-dev
+      - libxcb-randr0-dev
+      - libxcb-util0-dev
+      - libxcb-xinerama0-dev
+      - libxcb-xkb-dev
+      - libxcb-xrm-dev
+      - libxkbcommon-dev
+      - libxkbcommon-dev
+      - libxkbcommon-x11-dev
+      - ninja-build
+      - python3-pip
+      - python3-setuptools
+      - python3-wheel
+      - texi2html
+      - texinfo
+      - xdotool
+      - xfonts-base
+      - xterm
+      - xutils-dev
+
+compiler:
+  - clang
+  - gcc
+
+# TODO: Potentially switch to coverxygen (active project with the same goal)
+# at some point in the future?
+install:
+  # doxy-coverage is not packaged in Ubuntu 18.04 (Bionic), clone the helper
+  # scripts manually:
+  - git clone https://github.com/alobbs/doxy-coverage
+  # Ubuntu's meson version is outdated. Use pip to install a more recent
+  # release:
+  - pip3 install --user meson
+  # ~/.local/bin is not a part of $PATH by default. Update $PATH to include it:
+  - PATH="$PATH:$HOME/.local/bin"
+
+before_script:
+  # Configure the build directory with meson:
+  - meson setup build
+
+# TODO: Fix X11 tests (and check whether or not changing the user's resource
+#       limit is still required for the X11 tests).
+script:
+  # Build the project:
+  - ninja -C build
+  # Run tests:
+  - ninja -C build test
+  #- ulimit -c unlimited
+  #- ninja -C build test-x
+  - ninja -C build doc/html 2>&1 > doxygen.log
+  - test $(grep -c warning doxygen.log) -eq 0
+  - ./doxy-coverage/doxy-coverage.py build/doc/html/xml/
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+
+notifications:
+  webhooks:
+    urls:
+      - secure: "AqDM5SkWJPSBeCiyGdXzHYLnFCML/vKxWW/0wE00ocX+97Fa5ixeU7apMJ0OMZ0ZQVXG96xVtlJ513ZSpnRYHx6FF+Ivvw5pYeZjKHqtxThEhOueW1YynYWMX7HJrA4P19ollqRLrtsJqG6x7BhVEnIyhyu9eXtgj6hiI70F0SE="
+    on_success: change

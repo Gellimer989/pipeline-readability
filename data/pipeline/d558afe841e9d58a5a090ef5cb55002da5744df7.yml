@@ -1,0 +1,45 @@
+env:
+  global:
+  - CC_TEST_REPORTER_ID=$CC_TEST_REPORTER_ID
+language: ruby
+rvm:
+- 2.5.1
+sudo: false
+cache:
+  directories:
+  - travis_phantomjs
+before_install:
+- export DISPLAY=:99.0
+- sh -e /etc/init.d/xvfb start
+- phantomjs --version
+- export PATH=$PWD/travis_phantomjs/phantomjs-2.1.1-linux-x86_64/bin:$PATH
+- phantomjs --version
+- if [ $(phantomjs --version) != '2.1.1' ]; then rm -rf $PWD/travis_phantomjs; mkdir
+  -p $PWD/travis_phantomjs; fi
+- if [ $(phantomjs --version) != '2.1.1' ]; then wget https://assets.membergetmember.co/software/phantomjs-2.1.1-linux-x86_64.tar.bz2
+  -O $PWD/travis_phantomjs/phantomjs-2.1.1-linux-x86_64.tar.bz2; fi
+- if [ $(phantomjs --version) != '2.1.1' ]; then tar -xvf $PWD/travis_phantomjs/phantomjs-2.1.1-linux-x86_64.tar.bz2
+  -C $PWD/travis_phantomjs; fi
+- phantomjs --version
+before_script:
+- "./install.sh"
+- curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64
+  > ./cc-test-reporter
+- chmod +x ./cc-test-reporter
+- "./cc-test-reporter before-build"
+script:
+- USE_JASMINE_RAKE=true bundle exec rake jasmine:ci
+- bundle exec rspec
+- bundle exec rake cucumber:first_try
+- bundle exec rake cucumber:second_try
+after_script:
+- "./cc-test-reporter after-build"
+deploy:
+  provider: script
+  script: bash scripts/deploy.sh
+  on:
+    branch: configure_travis_to_push_to_dokku
+notifications:
+  email: false
+  slack:
+    secure: TZyMRkIOE99+rMEfOP3a9hCLmgF0K+Qr9vO0b3tgJLeb+SdKL3L++NyO0Q7rJUFJLHkYhn/BcV2wGNT2mrU1q9GPqOO0yyFwjl+v2vpImkPlnVf6Ud9+NnQIgFWK98LmSY0uCCZ8axvHw4ReFi/nK1p2GNabyhY8Dio4uJnryEQ=

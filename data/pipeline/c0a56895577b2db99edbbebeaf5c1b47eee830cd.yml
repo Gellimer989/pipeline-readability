@@ -1,0 +1,9 @@
+sudo: false
+language: java
+script: mvn verify
+jdk:
+  - oraclejdk8
+after_success:
+  - if [ $SONATYPE_USERNAME ] && [ -z "$TRAVIS_TAG" ] && [ ! "$TRAVIS_PULL_REQUEST" ]; then
+      mvn clean deploy --settings .travis/settings.xml;
+    fi;

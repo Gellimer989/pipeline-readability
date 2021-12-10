@@ -1,0 +1,113 @@
+# Environment variables
+language: c
+cache: ccache
+os: linux
+dist: bionic
+osx_image: xcode11.3
+git:
+  depth: false
+  quiet: true
+  submodules: false
+addons:
+  apt:
+    update: true
+    packages:
+      - &native_deps cmake yasm
+  homebrew:
+    update: true
+    packages:
+      - yasm
+      - ccache
+      - python
+
+env:
+  global:
+    - build_type=release LD_LIBRARY_PATH=/usr/local/lib PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+
+# Default scripts
+install:
+  - "sudo chown -R travis: $HOME/.ccache"
+  - |
+    case $(uname -s) in
+    Darwin)
+      export PATH="/usr/local/opt/ccache/libexec:$PATH"
+      sysctl -n machdep.cpu.brand_string
+      sysctl -n machdep.cpu.features machdep.cpu.leaf7_features | sort -u
+      ;;
+    Linux)
+      sort -u /proc/cpuinfo
+      test -f "/usr/lib/ccache/${CC##*/}" || sudo ln -s /usr/bin/ccache "/usr/lib/ccache/${CC##*/}"
+      test -f "/usr/lib/ccache/${CXX##*/}" || sudo ln -s /usr/bin/ccache "/usr/lib/ccache/${CXX##*/}"
+      CFLAGS="-Werror"
+      case $CC in
+      *clang*) CFLAGS+=" -Wno-error=array-bounds" ;;
+      esac
+      export CFLAGS
+      ;;
+    esac
+    cmake --version
+    $CC --version
+  - cd "$TRAVIS_BUILD_DIR"
+  - wget -nc https://raw.githubusercontent.com/OpenVisualCloud/SVT-AV1-Resources/master/video.tar.gz || wget -nc http://randomderp.com/video.tar.gz
+  - tar xf video.tar.gz
+  - mkdir -p "$TRAVIS_BUILD_DIR/Build/linux/${build_type:=Release}"
+script:
+  - &base_script |
+    cd "$TRAVIS_BUILD_DIR/Build/linux/$build_type" &&
+    cmake "$TRAVIS_BUILD_DIR" -G"Unix Makefiles" -DCMAKE_BUILD_TYPE="$build_type" ${CMAKE_EFLAGS} &&
+    case $(cmake --version | grep version) in
+    *3.10*) cmake --build "$TRAVIS_BUILD_DIR/Build/linux/$build_type" ;;
+    *) cmake --build "$TRAVIS_BUILD_DIR/Build/linux/$build_type" -j $(($(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu) + 1)) ;;
+    esac &&
+    sudo cmake --build "$TRAVIS_BUILD_DIR/Build/linux/$build_type" --target install &&
+    cd "$TRAVIS_BUILD_DIR"
+  - &8bit_test |
+    SvtAv1EncApp --preset 0 -i akiyo_cif.y4m -n 3 &&
+    SvtAv1EncApp --preset 8 -i akiyo_cif.y4m -n 150
+  - &10bit_test |
+    SvtAv1EncApp --preset 0 -i Chimera-Aerial_480x264_2997fps_10bit_420_150frames.y4m -n 3 --lp 1 &&
+    SvtAv1EncApp --preset 8 -i Chimera-Aerial_480x264_2997fps_10bit_420_150frames.y4m -n 150
+before_cache:
+  - "sudo chown -R travis: $HOME/.ccache"
+  - ccache -c
+  - ccache -s
+
+# Build matrix
+jobs:
+  fast_finish: true
+  include:
+    # macOS builds and 8-bit test
+    - name: macOS Clang build and 8-bit test
+      os: osx
+      compiler: clang
+      script:
+        - *base_script
+        - *8bit_test
+    # macOS builds and 10-bit test
+    - name: macOS 10-bit test
+      os: osx
+      compiler: clang
+      script:
+        - *base_script
+        - *10bit_test
+    # Multiple CPU Architectures
+    - name: Arm64 GCC 7 build
+      env: build_type=release CC=gcc-7 CXX=g++-7
+      arch: arm64
+    - name: PowerPC GCC 7 build
+      env: build_type=release CC=gcc-7 CXX=g++-7
+      arch: ppc64le
+    - name: IBM Z GCC 7 build
+      env: build_type=release CC=gcc-7 CXX=g++-7
+      arch: s390x
+    # Valgrind on Linux
+    - name: Valgrind
+      env: build_type=debug
+      addons:
+        apt:
+          packages:
+            - *native_deps
+            - valgrind
+      script:
+        - *base_script
+        - travis_wait 60 valgrind -- SvtAv1EncApp --preset 4 -i akiyo_cif.y4m -n 20 -b test1.ivf

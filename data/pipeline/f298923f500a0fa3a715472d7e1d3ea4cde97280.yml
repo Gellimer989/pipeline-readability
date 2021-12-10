@@ -1,0 +1,69 @@
+---
+language: python
+python:
+  - "3.6"
+
+cache:
+  directories:
+    - $HOME/.cache/pip
+    - $HOME/.npm
+
+# Do not run in Travis CI when the branch name starts with "nobuild". Primarily
+# intended for documentation updates but may be used as an escape hatch for
+# other purposes.
+branches:
+  except:
+    - /^nobuild.*$/
+
+services:
+  - docker
+
+env:
+  global:
+    - PATH=~/bin:$PATH
+    - DOCKER_REGISTRY=quay.io/datawire
+    
+    # Set the branch in a predictable way. Travis behavior is that when you are
+    # executing due to a PR then the value of $TRAVIS_BRANCH is actually the
+    # name of the base branch (e.g. "master" rather than "dev/new-feature").
+    #
+    # See also: https://graysonkoonce.com/getting-the-current-branch-name-during-a-pull-request-in-travis-ci/
+    - GIT_BRANCH=$(if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then printf "$TRAVIS_BRANCH"; else printf "$TRAVIS_PULL_REQUEST_BRANCH"; fi)
+
+    # Set from the repository settings:
+    #- DOCKER_USERNAME=[secure]
+    #- DOCKER_PASSWORD=[secure]
+    #- encrypted_95ce0d75e6f7_key=[secure] # XXX: remove me
+    #- encrypted_95ce0d75e6f7_iv=[secure]  # XXX: remove me
+    #- GH_TOKEN=[secure]                   # XXX: remove me
+    #- encrypted_21b00a486c76_key=[secure] # XXX: remove me
+    #- encrypted_21b00a486c76_iv=[secure]  # XXX: remove me
+
+    # Encrypted here:
+    # - PACKAGECLOUD_TOKEN # XXX: remove me
+    # - PYPI_PASSWORD      # XXX: remove me
+    # - AWS_ACCESS_KEY_ID
+    # - AWS_SECRET_ACCESS_KEY
+    - secure: "F9oY34UDI8aXuZ9nb6z3/ltlqrNs4RUQHDZHa2YSFoq0r2Rn272Yg7oHfPh3deYNKxtUOBwwcpiC/7G9MqhkuLQEYhqY/KowidG6gOxCZdTDEVS10C4GDEMGj64URlUCS722tQYMIpniiB6LW2kEOOcEuzC6JsVxS7BowUEVk7Ly8BTzrgNuGFN2bSphRyrJyrS3Reo5a1YI3joUMzI29t7fegefTIHHONKhZpIE86wFRk11nwvJdt54Eu9dVFwiEiGW9L9SnG2ph4UiqN6z3iQFCQ8HNvnf+BvNasdMBR3f85DPnG/syqOcQrrE1e5T88UXRxyUwR2ty1ad+ZvQPggwsoFs1FmdJH04pGn0Tgpo/AHNe5c67tvDbw2W4jlFJgVI/keoFvQigSM2DUuL1i0v48TkZw8lgcfasRjtJi7iDTC4qqjyMLkY6y2TRTVDG/86qxK3No7vvJZajzntU3c6MUttiSDubaHL5RuklQ+7MjN5Dp1cD09L3Qqnm9KcjWzbNoyqriBO84VU4aJFF72jJ18qADX/UUj7cxi0ShY19BHX2Vrp3pPSNiePfO7okUrg5Wc4eD7u4eC+aUVHboEX35NhBnfj7/ASrsltIANYFmNarv3tvd67JIsm/Wz3pge6YOSV1pBr2IsGk5UVIXdJ/mm6GVWFlJ9PiELDBGc="
+
+before_install:
+  - mkdir -p ~/bin
+  # - make docker-login
+
+install:
+  - ./releng/travis-install.sh
+
+script:
+  - ./releng/travis-script.sh
+
+after_script:
+  # release the kubernaut claim
+  - ./releng/travis-cleanup.sh
+
+deploy:
+  - provider: script
+    script: ./releng/travis-release.sh
+    skip_cleanup: true
+    on:
+      all_branches: true
+      condition: $GIT_BRANCH =~ ^[0-9]+\.[0-9]+\.[0-9]+$
