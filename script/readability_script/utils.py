@@ -2,11 +2,11 @@ import re
 import pandas
 
 
-def take_redable(filename):
-    print(filename.split("/")[4].split(".")[0])
-    to_find = pandas.read_csv('../../data/dataset/parentCommit.csv')
+def take_readable(filename, dataset):
+    print(filename.split("/")[-1].split(".")[0])
+    to_find = pandas.read_csv(dataset)
     to_find = to_find.dropna()
-    filtred = to_find[to_find['CommitId'].str.contains(filename.split("/")[4].split(".")[0])]
+    filtred = to_find[to_find['CommitId'].str.contains(filename.split("/")[-1].split(".")[0])]
     return filtred['Redable'].values[0]
 
 
