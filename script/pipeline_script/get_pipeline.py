@@ -6,7 +6,7 @@ import github
 
 def init_csv():
     header = ['ID', 'RepoName', 'CommitId', 'Redable', 'CommitMessage']
-    with open('data/dataset/parentCommit.csv', 'w', encoding="utf8") as f:
+    with open('data/dataset/parentCommit.csv', 'w', encoding="utf8",newline="") as f:
         writer = csv.writer(f)
         writer.writerow(header)
 
@@ -36,7 +36,7 @@ def get_hash_parent(sha_commit, project_name):
 
 def write_on_csv(id, repo_name, hash, redable, commit_message):
     row_data = [id, repo_name, hash, redable, commit_message]
-    with open('data/dataset/parentCommit.csv', 'a', encoding="utf8") as f:
+    with open('data/dataset/parentCommit.csv', 'a', encoding="utf8",newline="") as f:
         writer = csv.writer(f)
         writer.writerow(row_data)
 
