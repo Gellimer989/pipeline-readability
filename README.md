@@ -5,4 +5,5 @@
     - `pipeline.zip`: contains all the yml files used to calculate the metrics
 - `script`: contains the python scripts for calculate the metrics and get the data
     - `pipeline_script`: script to get the pipeline
+    - `postprocessing`: scripts to calculate deltas of metrics between versions 
     - `readability_script `: scripts to calcultae all the maetrics and create the final dataset
