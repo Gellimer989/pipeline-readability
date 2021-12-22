@@ -15,13 +15,12 @@ def init_csv():
 def filter_dataset(hash):
     filt_datatset = pd.read_csv(BASE_PATH + '/../../data/dataset/dataset.csv')
     out = pd.DataFrame()
-    out = out.append(filt_datatset[filt_datatset['FileName'] == str(hash) + ".yml"],ignore_index=True)
+    out = out.append(filt_datatset[filt_datatset['FileName'] == str(hash) + ".yml"], ignore_index=True)
 
-    if os.stat(BASE_PATH + '/../../data/dataset/datasetFiltred.csv').st_size ==0:
-        out.to_csv(BASE_PATH + '/../../data/dataset/datasetFiltred.csv',mode='a', index=False)
+    if os.stat(BASE_PATH + '/../../data/dataset/datasetFiltred.csv').st_size == 0:
+        out.to_csv(BASE_PATH + '/../../data/dataset/datasetFiltred.csv', mode='a', index=False)
     else:
-        out.to_csv(BASE_PATH + '/../../data/dataset/datasetFiltred.csv', mode='a', index=False,header=False)
-
+        out.to_csv(BASE_PATH + '/../../data/dataset/datasetFiltred.csv', mode='a', index=False, header=False)
 
 
 def main():
@@ -37,15 +36,15 @@ def main():
         if str(row[1]['CommitMessage']) != " ":
             for word in str(row[1]['CommitMessage']).split(" "):
                 # def the filter word for the commit message
-                if word.lower().find("fix") != -1:
+                if word.lower().find("cleanup") != -1:
+                    # save the matched row and the row[0]+1 indexes
                     row_data_1 = [row[1]['ID'], row[1]['RepoName'], row[1]['CommitId'], row[1]['Redable'],
                                   row[1]['CommitMessage']]
                     filter_dataset(row[1]['CommitId'])
                     row_data_0 = filit_parent.iloc[i + 1]
-                    filter_dataset(filit_parent.iloc[i+1]['CommitId'])
-
-                    # save the matched row and the row[0]+1 indexes
-                    with open(BASE_PATH + '/../../data/dataset/parentFiltered.csv', 'a', newline="") as f:
+                    filter_dataset(filit_parent.iloc[i + 1]['CommitId'])
+                    with open(BASE_PATH + '/../../data/dataset/parentFiltered.csv', 'a', encoding="utf-8",
+                              newline="") as f:
                         writer = csv.writer(f)
                         writer.writerow(row_data_1)
                         writer.writerow(row_data_0)

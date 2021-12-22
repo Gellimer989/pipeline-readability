@@ -4,7 +4,7 @@ require 'set'
 
 Dir.chdir(File.join(File.expand_path(File.dirname(__FILE__)), "..", ".."))
 
-parents = Rust::CSV.read('data/dataset/parentCommit.csv', headers: true)
+parents = Rust::CSV.read('data/dataset/parentFiltered.csv', headers: true)
 metrics = Rust::CSV.read('data/dataset/metrics.csv', headers: true)
 
 after_version  = {}
