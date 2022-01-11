@@ -15,6 +15,7 @@ from spaces import avg_space
 from calc_numbers import max_number
 from occurences_character import max_occurences_character
 from utils import lines_of_codes, take_readable
+import pandas as pd
 import csv
 import os
 
@@ -26,11 +27,17 @@ def main():
 
     init_csv()
 
+    ids = pd.read_csv(BASE_PATH + '/../../data/dataset/exstractedId.csv')
+    ids = ids["CommitId"].to_numpy()
+
     with open(BASE_PATH + '/../../data/dataset/dataset.csv', 'a+', encoding="utf8",newline="") as f:
         writer = csv.writer(f)
-        for filename in os.listdir(BASE_PATH + "/../../data/pipeline"):
-            print("Using " + filename)
-            write_csv(writer, BASE_PATH + "/../../data/pipeline/" + filename)
+        for id in ids:
+            print("Using " + id)
+            write_csv(writer, BASE_PATH + "/../../data/pipeline/" + id+".yml")
+        # for filename in os.listdir(BASE_PATH + "/../../data/pipeline"):
+        #     print("Using " + filename)
+        #     write_csv(writer, BASE_PATH + "/../../data/pipeline/" + filename)
 
 
 def init_csv():
