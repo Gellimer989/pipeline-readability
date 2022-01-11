@@ -27,7 +27,7 @@ def main():
 
     init_csv()
 
-    ids = pd.read_csv(BASE_PATH + '/../../data/dataset/exstractedId.csv')
+    ids = pd.read_csv(BASE_PATH + '/../../data/dataset/manualFiltCommits.csv')
     ids = ids["CommitId"].to_numpy()
 
     with open(BASE_PATH + '/../../data/dataset/dataset.csv', 'a+', encoding="utf8",newline="") as f:

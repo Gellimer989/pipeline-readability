@@ -178,7 +178,7 @@
 2928,pypa/pip,31fc943a98a99592f2228905acd3c0c3f6b71de5,0.0,Refactor travis install logic to move it into a shell script
 2445,3b1b/manim,f3f0e3ba03f476a80704e2789da3544b01473f86,0.0, 
 3199,github/github-services,b2fc5413490005df04c565d5371a2d920149642c,0.0, 
-2623,datawire/ambassador,6c62ac4a05f137a2f3308388e37f514c906d84c8,0.0, 
+2625,deepchem/deepchem,9638d1520e48e4fb4dffbefc1f096ea2f26e145c,0.0,a
 966,nest/nest-simulator,37238a17e6eb3221189950ee750f961802311446,0.0,Clean up .travis.yml and move libraries out of the NEST clone
 1371,TechEmpower/FrameworkBenchmarks,ef663d7cb52f767d9cb02875be069415075bce2b,0.0, 
 799,intel-isl/Open3D,68487f540044626c0b7b752d9fdf9a5b4ed26e77,0.0, 
