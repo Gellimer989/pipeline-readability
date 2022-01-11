@@ -82,7 +82,7 @@ def write_csv(writer, file_name):
         max_occurences_character(file_name),
         max_occurrences_env(file_name),
         max_script_lenght(file_name),
-        take_readable(file_name, BASE_PATH + '/../../data/dataset/parentCommit.csv')
+        take_readable(file_name, BASE_PATH + '/../../data/dataset/manualFiltCommits.csv')
     ]
 
     writer.writerow(row_data)

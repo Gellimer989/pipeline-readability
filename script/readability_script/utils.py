@@ -7,6 +7,7 @@ def take_readable(filename, dataset):
     to_find = pandas.read_csv(dataset)
     to_find = to_find.dropna()
     filtred = to_find[to_find['CommitId'].str.contains(filename.split("/")[-1].split(".")[0])]
+    print(filtred['Redable'].values[0])
     return filtred['Redable'].values[0]
 
 
