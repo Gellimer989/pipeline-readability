@@ -27,10 +27,10 @@ def main():
 
     init_csv()
 
-    ids = pd.read_csv(BASE_PATH + '/../../data/dataset/manualFiltCommits.csv')
+    ids = pd.read_csv(BASE_PATH + '/../../data/dataset/previousCommit.csv')
     ids = ids["CommitId"].to_numpy()
 
-    with open(BASE_PATH + '/../../data/dataset/dataset.csv', 'a+', encoding="utf8",newline="") as f:
+    with open(BASE_PATH + '/../../data/dataset/datasetFinal.csv', 'a+', encoding="utf8",newline="") as f:
         writer = csv.writer(f)
         for id in ids:
             print("Using " + id)
@@ -47,8 +47,8 @@ def init_csv():
               'AvgEnvLenght', 'AvgEnvVariable', 'AvgIfStatement', 'AvgIndentation', 'AvgKeyword',
               'AvgLineLenght', 'AvgNumber', 'AvgParenthesis', 'AvgScriptLenght', 'AvgSpace', 'MaxEnvLenght',
               'MaxEnvVariable', 'MaxIndentation', 'MaxLineeLenght', 'MaxNumber', 'MaxOccurencesCharacter',
-              'MaxOccurrencesEnv', 'MaxScriptLenght', 'Readable']
-    with open(BASE_PATH + '/../../data/dataset/dataset.csv', 'w', encoding="utf8",newline="") as f:
+              'MaxOccurrencesEnv', 'MaxScriptLenght'] #, 'Readable'
+    with open(BASE_PATH + '/../../data/dataset/datasetFinal.csv', 'w', encoding="utf8",newline="") as f:
         writer = csv.writer(f)
         writer.writerow(header)
 
@@ -81,8 +81,8 @@ def write_csv(writer, file_name):
         max_number(file_name),
         max_occurences_character(file_name),
         max_occurrences_env(file_name),
-        max_script_lenght(file_name),
-        take_readable(file_name, BASE_PATH + '/../../data/dataset/manualFiltCommits.csv')
+        max_script_lenght(file_name)
+        #take_readable(file_name, BASE_PATH + '/../../data/dataset/previousCommit.csv')
     ]
 
     writer.writerow(row_data)
